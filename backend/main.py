@@ -8,6 +8,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import settings
 
+# Import routers
+from api import users, campaigns, characters, dice
+
 app = FastAPI(
     title="RollScape API",
     description="AI-Native D&D Virtual Tabletop Backend",
@@ -24,6 +27,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Register API routers
+app.include_router(users.router)
+app.include_router(campaigns.router)
+app.include_router(characters.router)
+app.include_router(dice.router)
+
 @app.get("/")
 async def root():
     """Health check endpoint"""
@@ -31,7 +40,8 @@ async def root():
         "message": "Welcome to RollScape API",
         "version": "0.1.0",
         "status": "operational",
-        "environment": settings.environment
+        "environment": settings.environment,
+        "docs": "/docs"
     }
 
 @app.get("/health")
@@ -44,11 +54,14 @@ async def test():
     """Test endpoint to verify API is working"""
     return {
         "message": "API is working!",
-        "endpoints": [
-            "/",
-            "/health",
-            "/api/test",
-            "/docs",
-            "/redoc"
-        ]
+        "available_endpoints": {
+            "users": "/api/users",
+            "campaigns": "/api/campaigns",
+            "characters": "/api/characters",
+            "dice": "/api/dice"
+        },
+        "documentation": {
+            "swagger": "/docs",
+            "redoc": "/redoc"
+        }
     }
