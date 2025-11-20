@@ -167,6 +167,77 @@ class RedisService:
         if keys:
             self.client.delete(*keys)
     
+    # Social network helpers
+    def set_user_online(self, user_id: str, ttl: int = 300):
+        """
+        Mark user as online (5 min TTL by default).
+        Refresh on any user activity.
+        """
+        return self.client.set(f"user:{user_id}:online", "true", ex=ttl)
+    
+    def is_user_online(self, user_id: str) -> bool:
+        """Check if user is currently online"""
+        return self.client.exists(f"user:{user_id}:online")
+    
+    def get_online_users(self, user_ids: list[str]) -> list[str]:
+        """Get list of online users from given IDs"""
+        return [uid for uid in user_ids if self.is_user_online(uid)]
+    
+    def set_typing_indicator(self, conversation_id: str, user_id: str, ttl: int = 5):
+        """
+        Set typing indicator (5 sec TTL).
+        Client should refresh every 3 seconds while typing.
+        """
+        return self.client.set(f"conv:{conversation_id}:typing:{user_id}", "true", ex=ttl)
+    
+    def get_typing_users(self, conversation_id: str) -> list[str]:
+        """Get list of users currently typing in conversation"""
+        pattern = f"conv:{conversation_id}:typing:*"
+        keys = self.client.keys(pattern)
+        return [key.split(":")[-1] for key in keys]
+    
+    def get_unread_count(self, user_id: str) -> int:
+        """Get total unread message count for user"""
+        count = self.get(f"user:{user_id}:unread_total")
+        return int(count) if count else 0
+    
+    def set_unread_count(self, user_id: str, count: int, ttl: Optional[int] = None):
+        """Set total unread message count"""
+        ttl = ttl or self.config.ttl_default
+        return self.client.set(f"user:{user_id}:unread_total", str(count), ex=ttl)
+    
+    def increment_unread(self, user_id: str):
+        """Increment unread count for user"""
+        key = f"user:{user_id}:unread_total"
+        if not self.client.exists(key):
+            self.set_unread_count(user_id, 1)
+        else:
+            current = self.get_unread_count(user_id)
+            self.set_unread_count(user_id, current + 1)
+    
+    def cache_conversation_messages(self, conversation_id: str, messages: list, limit: int = 50, ttl: int = 600):
+        """
+        Cache recent messages for fast retrieval.
+        10 min TTL, refreshed on new message.
+        """
+        recent = messages[-limit:] if len(messages) > limit else messages
+        return self.set_json(f"conv:{conversation_id}:messages", recent, ex=ttl)
+    
+    def get_cached_messages(self, conversation_id: str) -> Optional[list]:
+        """Get cached messages for conversation"""
+        return self.get_json(f"conv:{conversation_id}:messages")
+    
+    def cache_user_inbox(self, user_id: str, conversations: list, ttl: int = 300):
+        """
+        Cache user's inbox (conversation list).
+        5 min TTL, refreshed on activity.
+        """
+        return self.set_json(f"user:{user_id}:inbox", conversations, ex=ttl)
+    
+    def get_cached_inbox(self, user_id: str) -> Optional[list]:
+        """Get cached inbox for user"""
+        return self.get_json(f"user:{user_id}:inbox")
+    
     # Passthrough methods
     def get(self, key: str) -> Optional[str]:
         """Get value"""

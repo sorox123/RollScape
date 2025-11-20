@@ -102,6 +102,11 @@ class MockTable:
     def __init__(self, data: List[Dict]):
         self.data = data
         self._filters = []
+        self._order_by = None
+        self._order_desc = False
+        self._limit_val = None
+        self._update_data = None
+        self._is_delete = False
     
     def select(self, columns: str = "*"):
         """Select columns"""
@@ -119,20 +124,15 @@ class MockTable:
     
     def update(self, data: Dict):
         """Update data"""
-        data["updated_at"] = datetime.utcnow().isoformat()
-        
-        # Apply filters and update
-        for item in self.data:
-            if self._matches_filters(item):
-                item.update(data)
-        
-        return MockResponse([item for item in self.data if self._matches_filters(item)])
+        self._update_data = data
+        if "updated_at" not in self._update_data:
+            self._update_data["updated_at"] = datetime.utcnow().isoformat()
+        return self
     
     def delete(self):
         """Delete data"""
-        to_delete = [item for item in self.data if self._matches_filters(item)]
-        self.data[:] = [item for item in self.data if not self._matches_filters(item)]
-        return MockResponse(to_delete)
+        self._is_delete = True
+        return self
     
     def eq(self, column: str, value: Any):
         """Filter equal"""
@@ -154,9 +154,52 @@ class MockTable:
         self._filters.append(("lt", column, value))
         return self
     
+    def order(self, column: str, desc: bool = False):
+        """Order results"""
+        self._order_by = column
+        self._order_desc = desc
+        return self
+    
+    def limit(self, count: int):
+        """Limit results"""
+        self._limit_val = count
+        return self
+    
+    def count(self):
+        """Count results"""
+        results = [item for item in self.data if self._matches_filters(item)]
+        return MockResponse([{"count": len(results)}])
+    
     def execute(self):
         """Execute query"""
+        # Handle updates
+        if self._update_data:
+            for item in self.data:
+                if self._matches_filters(item):
+                    item.update(self._update_data)
+            results = [item for item in self.data if self._matches_filters(item)]
+            return MockResponse(results)
+        
+        # Handle deletes
+        if self._is_delete:
+            to_delete = [item for item in self.data if self._matches_filters(item)]
+            self.data[:] = [item for item in self.data if not self._matches_filters(item)]
+            return MockResponse(to_delete)
+        
+        # Handle selects
         results = [item for item in self.data if self._matches_filters(item)]
+        
+        # Apply ordering
+        if self._order_by and results:
+            results.sort(
+                key=lambda x: x.get(self._order_by, ''),
+                reverse=self._order_desc
+            )
+        
+        # Apply limit
+        if self._limit_val:
+            results = results[:self._limit_val]
+        
         return MockResponse(results)
     
     def _matches_filters(self, item: Dict) -> bool:

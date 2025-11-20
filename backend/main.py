@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import settings
 
 # Import routers
-from api import users, campaigns, characters, dice, dm, player_agent, game_session, status
+from api import users, campaigns, characters, dice, dm, player_agent, game_session, status, friends, messaging
 
 app = FastAPI(
     title="RollScape API",
@@ -36,6 +36,8 @@ app.include_router(dm.router)
 app.include_router(player_agent.router)
 app.include_router(game_session.router)
 app.include_router(status.router)
+app.include_router(friends.router)
+app.include_router(messaging.router)
 
 @app.get("/")
 async def root():
@@ -66,7 +68,9 @@ async def test():
             "dm": "/api/dm",
             "player-agent": "/api/player-agent",
             "game-session": "/api/session",
-            "status": "/api/status"
+            "status": "/api/status",
+            "friends": "/api/friends",
+            "messages": "/api/messages"
         },
         "documentation": {
             "swagger": "/docs",
