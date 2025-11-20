@@ -47,5 +47,13 @@
     "@testing-library/jest-dom": "^6.1.5",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0"
-  }
+  },
+  "description": "The Next.js frontend for RollScape.",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }
