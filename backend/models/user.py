@@ -3,9 +3,10 @@ User model - Core authentication and profile management.
 """
 
 from sqlalchemy import Column, String, Boolean, DateTime, Enum, Integer
-from sqlalchemy.dialects.postgresql import UUID
+
 from sqlalchemy.sql import func
 from database import Base
+from db_types import GUID, FlexJSON
 import uuid
 import enum
 
@@ -30,7 +31,7 @@ class User(Base):
     __tablename__ = "users"
     
     # Primary
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True, nullable=False, index=True)
     username = Column(String(50), unique=True, nullable=False, index=True)
     

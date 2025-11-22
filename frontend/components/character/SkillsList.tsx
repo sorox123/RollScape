@@ -60,7 +60,9 @@ export default function SkillsList({ character, isEditing, onSave }: SkillsListP
     try {
       const response = await apiDice.roll(notation)
       const advantageText = advantage === 'advantage' ? ' (Advantage)' : advantage === 'disadvantage' ? ' (Disadvantage)' : ''
-      alert(`${skillName}${advantageText}: ${response.data.result}`)
+      if (response.data) {
+        alert(`${skillName}${advantageText}: ${response.data.total}`)
+      }
     } catch (err) {
       console.error('Failed to roll:', err)
     }

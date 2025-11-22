@@ -3,9 +3,11 @@ Game session model - Individual play sessions within a campaign.
 """
 
 from sqlalchemy import Column, String, DateTime, Integer, Text, ForeignKey, Enum
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
+from db_types import GUID, FlexJSON
 import uuid
 import enum
 
@@ -23,8 +25,8 @@ class GameSession(Base):
     __tablename__ = "game_sessions"
     
     # Primary
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    campaign_id = Column(UUID(as_uuid=True), ForeignKey("campaigns.id"), nullable=False)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    campaign_id = Column(GUID(), ForeignKey("campaigns.id"), nullable=False)
     
     # Session info
     session_number = Column(Integer, nullable=False)
@@ -46,8 +48,8 @@ class GameSession(Base):
     
     # Session state (stored for resuming)
     current_scene = Column(String(200))
-    current_map_id = Column(UUID(as_uuid=True))  # Reference to battle map
-    active_combatants = Column(JSONB, default=[])  # Initiative order
+    current_map_id = Column(GUID())  # Reference to battle map
+    active_combatants = Column(FlexJSON, default=[])  # Initiative order
     
     # AI usage tracking
     ai_requests_count = Column(Integer, default=0)
@@ -56,10 +58,13 @@ class GameSession(Base):
     
     # Summary (AI-generated after session)
     summary = Column(Text)
-    key_events = Column(JSONB, default=[])
-    npcs_met = Column(JSONB, default=[])
-    items_found = Column(JSONB, default=[])
-    quests_updated = Column(JSONB, default=[])
+    key_events = Column(FlexJSON, default=[])
+    npcs_met = Column(FlexJSON, default=[])
+    items_found = Column(FlexJSON, default=[])
+    quests_updated = Column(FlexJSON, default=[])
+    
+    # Relationships
+    logs = relationship("SessionLog", back_populates="session", cascade="all, delete-orphan")
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

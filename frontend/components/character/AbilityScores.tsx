@@ -32,7 +32,9 @@ export default function AbilityScores({ character, isEditing, onSave, onRoll }: 
     
     try {
       const response = await apiDice.roll(`1d20${formatModifier(modifier)}`)
-      alert(`${ABILITY_NAMES[ability]} Saving Throw: ${response.data.result}`)
+      if (response.data) {
+        alert(`${ABILITY_NAMES[ability]} Saving Throw: ${response.data.total}`)
+      }
     } catch (err) {
       console.error('Failed to roll:', err)
     }

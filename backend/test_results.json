@@ -1,0 +1,300 @@
+{
+  "timestamp": "2025-11-21T23:14:10.056131",
+  "summary": {
+    "total": 35,
+    "passed": 26,
+    "failed": 9,
+    "bugs_found": 3
+  },
+  "tests": [
+    {
+      "category": "Status",
+      "name": "Health check",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:12:56.336134"
+    },
+    {
+      "category": "Status",
+      "name": "Mode check",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:12:58.378378"
+    },
+    {
+      "category": "Status",
+      "name": "Costs tracking",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:00.418044"
+    },
+    {
+      "category": "Users",
+      "name": "Get current user",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:02.453704"
+    },
+    {
+      "category": "Users",
+      "name": "Get quota",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:04.491865"
+    },
+    {
+      "category": "Users",
+      "name": "Update profile",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:06.525633"
+    },
+    {
+      "category": "Users",
+      "name": "Get user by ID",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:08.546919"
+    },
+    {
+      "category": "Users",
+      "name": "Invalid UUID handling",
+      "passed": false,
+      "message": "Expected 404/422, got No response",
+      "timestamp": "2025-11-21T23:13:10.594388"
+    },
+    {
+      "category": "Campaigns",
+      "name": "Create campaign",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:12.656586"
+    },
+    {
+      "category": "Campaigns",
+      "name": "Validation - missing fields",
+      "passed": false,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:14.690980"
+    },
+    {
+      "category": "Campaigns",
+      "name": "Get my campaigns",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:16.730110"
+    },
+    {
+      "category": "Campaigns",
+      "name": "Get campaign by ID",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:18.774319"
+    },
+    {
+      "category": "Campaigns",
+      "name": "Update campaign",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:20.849271"
+    },
+    {
+      "category": "Campaigns",
+      "name": "List campaigns",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:22.908945"
+    },
+    {
+      "category": "Campaigns",
+      "name": "Invalid campaign ID handling",
+      "passed": false,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:24.934085"
+    },
+    {
+      "category": "Characters",
+      "name": "Create character",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:26.998435"
+    },
+    {
+      "category": "Characters",
+      "name": "Validation - missing campaign_id",
+      "passed": false,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:29.058542"
+    },
+    {
+      "category": "Characters",
+      "name": "Get character by ID",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:31.121941"
+    },
+    {
+      "category": "Characters",
+      "name": "Update character",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:33.179234"
+    },
+    {
+      "category": "Characters",
+      "name": "Apply damage",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:37.292499"
+    },
+    {
+      "category": "Characters",
+      "name": "Apply healing",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:39.345918"
+    },
+    {
+      "category": "Characters",
+      "name": "Healing cap at max HP",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:41.413725"
+    },
+    {
+      "category": "Characters",
+      "name": "Get campaign characters",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:43.438188"
+    },
+    {
+      "category": "DM",
+      "name": "Test endpoint",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:45.493651"
+    },
+    {
+      "category": "DM",
+      "name": "Generate narrative response",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:47.531653"
+    },
+    {
+      "category": "DM",
+      "name": "Generate NPC",
+      "passed": false,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:49.584232"
+    },
+    {
+      "category": "DM",
+      "name": "Get DM stats",
+      "passed": false,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:51.613119"
+    },
+    {
+      "category": "Dice",
+      "name": "Roll single die",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:53.644412"
+    },
+    {
+      "category": "Dice",
+      "name": "Roll with modifier",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:55.686991"
+    },
+    {
+      "category": "Dice",
+      "name": "Roll multiple dice",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:57.715795"
+    },
+    {
+      "category": "Dice",
+      "name": "Invalid notation handling",
+      "passed": false,
+      "message": "",
+      "timestamp": "2025-11-21T23:13:59.760351"
+    },
+    {
+      "category": "Security",
+      "name": "SQL injection protection",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:14:03.886591"
+    },
+    {
+      "category": "Security",
+      "name": "XSS protection",
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-21T23:14:05.952107"
+    },
+    {
+      "category": "Validation",
+      "name": "Long string rejection",
+      "passed": false,
+      "message": "Accepted 10k char name",
+      "timestamp": "2025-11-21T23:14:07.995877"
+    },
+    {
+      "category": "Validation",
+      "name": "Negative value rejection",
+      "passed": false,
+      "message": "",
+      "timestamp": "2025-11-21T23:14:10.054654"
+    }
+  ],
+  "bugs": [
+    {
+      "id": "BUG-007",
+      "severity": "Low",
+      "endpoint": "GET /api/users/{invalid-id}",
+      "expected": "404 or 422 error",
+      "actual": "Got: No response",
+      "steps": [
+        "1. GET /api/users/invalid-uuid"
+      ],
+      "error": "",
+      "impact": "Error handling inconsistent",
+      "suggested_fix": "",
+      "timestamp": "2025-11-21T23:13:10.594388"
+    },
+    {
+      "id": "BUG-010",
+      "severity": "Medium",
+      "endpoint": "POST /api/campaigns",
+      "expected": "422 Validation Error",
+      "actual": "Got: No response",
+      "steps": [
+        "1. POST /api/campaigns with only name field"
+      ],
+      "error": "",
+      "impact": "Validation not enforcing required fields",
+      "suggested_fix": "",
+      "timestamp": "2025-11-21T23:13:14.690980"
+    },
+    {
+      "id": "BUG-018",
+      "severity": "Medium",
+      "endpoint": "POST /api/campaigns",
+      "expected": "Name length validation",
+      "actual": "Accepted 10k character name",
+      "steps": [
+        "1. POST campaign with 10k char name"
+      ],
+      "error": "",
+      "impact": "Database bloat, DoS potential",
+      "suggested_fix": "Add max length validation to schemas",
+      "timestamp": "2025-11-21T23:14:07.995877"
+    }
+  ]
+}

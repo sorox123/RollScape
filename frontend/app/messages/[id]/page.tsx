@@ -6,37 +6,12 @@ import {
   ArrowLeft, Send, MoreVertical, Users, AlertCircle
 } from 'lucide-react'
 import { apiMessages } from '@/lib/api'
-
-interface Message {
-  id: string
-  conversation_id: string
-  sender_id: string
-  sender_name: string
-  content: string
-  type: 'text' | 'system' | 'dice_roll' | 'image'
-  metadata?: any
-  reply_to_id?: string
-  created_at: string
-  is_read: boolean
-}
-
-interface Conversation {
-  id: string
-  type: 'direct' | 'group' | 'campaign'
-  name?: string
-  campaign_id?: string
-  participants: Array<{
-    user_id: string
-    username: string
-    is_online: boolean
-  }>
-  created_at: string
-}
+import type { Message, Conversation } from '@/lib/types/api'
 
 export default function ConversationPage() {
   const router = useRouter()
   const params = useParams()
-  const conversationId = params.id as string
+  const conversationId = (params?.id as string) || ''
   
   const [conversation, setConversation] = useState<Conversation | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -75,7 +50,9 @@ export default function ConversationPage() {
   async function loadConversation() {
     try {
       const response = await apiMessages.getConversation(conversationId)
-      setConversation(response.data)
+      if (response.data) {
+        setConversation(response.data)
+      }
     } catch (err: any) {
       console.error('Failed to load conversation:', err)
     }
@@ -85,8 +62,9 @@ export default function ConversationPage() {
     try {
       setLoading(true)
       const response = await apiMessages.getMessages(conversationId, 50)
-      setMessages(response.data)
-      setHasMore(response.data.length >= 50)
+      const data = response.data || []
+      setMessages(data)
+      setHasMore(data.length >= 50)
     } catch (err: any) {
       console.error('Failed to load messages:', err)
     } finally {
@@ -103,7 +81,8 @@ export default function ConversationPage() {
       
       // Add new messages that aren't already in the list
       const existingIds = new Set(messages.map(m => m.id))
-      const newMessages = response.data.filter((m: Message) => !existingIds.has(m.id))
+      const data = response.data || []
+      const newMessages = data.filter((m: Message) => !existingIds.has(m.id))
       
       if (newMessages.length > 0) {
         setMessages(prev => [...prev, ...newMessages])
@@ -128,8 +107,8 @@ export default function ConversationPage() {
   async function checkTyping() {
     try {
       const response = await apiMessages.getTyping(conversationId)
-      const typing = response.data.typing_users || []
-      setTypingUsers(typing.filter((id: string) => id !== currentUserId))
+      const data = response.data || []
+      setTypingUsers(data.map(t => t.user_id).filter(id => id !== currentUserId))
     } catch (err: any) {
       console.error('Failed to check typing:', err)
     }
@@ -138,18 +117,21 @@ export default function ConversationPage() {
   async function sendMessage() {
     if (!messageContent.trim() || sending) return
 
+    const content = messageContent.trim()
+    
     try {
       setSending(true)
-      const content = messageContent.trim()
       setMessageContent('') // Clear input immediately
       
       const response = await apiMessages.sendMessage(conversationId, {
         content,
-        type: 'text',
+        message_type: 'text',
       })
       
       // Add the new message to the list
-      setMessages(prev => [...prev, response.data])
+      if (response.data) {
+        setMessages(prev => [...prev, response.data!])
+      }
       
       // Stop typing indicator
       await apiMessages.setTyping(conversationId, false)
@@ -205,7 +187,7 @@ export default function ConversationPage() {
   let isOnline = false
   if (conversation) {
     displayName = conversation.name || 'Unnamed Conversation'
-    if (!conversation.name && conversation.type === 'direct' && conversation.participants.length > 0) {
+    if (!conversation.name && conversation.type === 'direct' && conversation.participants && conversation.participants.length > 0) {
       displayName = conversation.participants[0].username
       isOnline = conversation.participants[0].is_online
     }
@@ -244,7 +226,7 @@ export default function ConversationPage() {
                   {isOnline && (
                     <p className="text-xs text-green-400">Online</p>
                   )}
-                  {conversation?.type === 'group' && (
+                  {conversation?.type === 'group' && conversation.participants && (
                     <p className="text-xs text-gray-400">
                       {conversation.participants.length} members
                     </p>

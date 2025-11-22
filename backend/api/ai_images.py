@@ -2,6 +2,8 @@
 AI Image Generation API
 
 Endpoints for generating maps, character art, tokens, and managing image library.
+
+Now supports MOCK_MODE for free development!
 """
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -10,16 +12,15 @@ from typing import Optional, List, Literal
 from datetime import datetime
 import os
 
-from services.dalle_service import dalle_service, ImageType
-from services.service_config import openai_config, ServiceMode
-from models.subscription import (
-    SubscriptionTier,
-    can_use_feature,
-    check_quota,
-    get_upgrade_prompt
-)
+from services.service_factory import get_image_service, ServiceFactory
+from config import settings
 
 router = APIRouter(prefix="/api/ai", tags=["AI Images"])
+
+
+def get_dalle_service():
+    """Get DALL-E service (mock or real based on configuration)"""
+    return get_image_service()
 
 
 # Request Models

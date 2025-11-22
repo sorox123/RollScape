@@ -37,7 +37,7 @@ export default function CharacterSheetPage() {
     try {
       setLoading(true)
       const response = await apiCharacters.get(characterId)
-      setCharacter(response.data)
+      setCharacter(response.data || null)
       setError(null)
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load character')
@@ -52,7 +52,9 @@ export default function CharacterSheetPage() {
     try {
       setSaving(true)
       const response = await apiCharacters.update(characterId, updates)
-      setCharacter(response.data)
+      if (response.data) {
+        setCharacter(response.data)
+      }
       setIsEditing(false)
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Failed to save character')
@@ -69,7 +71,9 @@ export default function CharacterSheetPage() {
     
     try {
       const response = await apiDice.roll(`1d20${formatModifier(modifier)}`)
-      alert(`${ability.toUpperCase()} Check: ${response.data.result} (${response.data.notation})`)
+      if (response.data) {
+        alert(`${ability.toUpperCase()} Check: ${response.data.total} (${response.data.notation})`)
+      }
     } catch (err) {
       console.error('Failed to roll dice:', err)
     }

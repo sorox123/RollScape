@@ -1,9 +1,8 @@
-"""
-Pydantic schemas for API requests and responses.
+"""Pydantic schemas for API requests and responses.
 These define the contract between frontend and backend.
 """
 
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
 from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
@@ -56,8 +55,8 @@ class UserResponse(UserBase):
 
 class CampaignBase(BaseModel):
     """Base campaign fields"""
-    name: str = Field(..., min_length=1, max_length=200)
-    description: Optional[str] = None
+    name: str = Field(..., min_length=1, max_length=200, description="Campaign name (no HTML)")
+    description: Optional[str] = Field(None, max_length=5000, description="Campaign description")
     rule_system: str = Field(default="dnd_5e", max_length=100)
     max_players: int = Field(default=6, ge=1, le=20)
     visibility: CampaignVisibility = CampaignVisibility.PRIVATE
@@ -65,14 +64,29 @@ class CampaignBase(BaseModel):
 
 class CampaignCreate(CampaignBase):
     """Schema for creating a campaign"""
+    description: str = Field(..., min_length=1, max_length=5000, description="Campaign description (required)")
     ai_dm_enabled: bool = False
     ai_players_enabled: bool = False
+    
+    @field_validator('name')
+    @classmethod
+    def validate_name_length(cls, v: str) -> str:
+        if len(v) > 200:
+            raise ValueError(f'Name too long: {len(v)} characters (max 200)')
+        return v
+    
+    @field_validator('description')
+    @classmethod
+    def validate_description_length(cls, v: str) -> str:
+        if len(v) > 5000:
+            raise ValueError(f'Description too long: {len(v)} characters (max 5000)')
+        return v
 
 
 class CampaignUpdate(BaseModel):
     """Schema for updating a campaign"""
     name: Optional[str] = Field(None, min_length=1, max_length=200)
-    description: Optional[str] = None
+    description: Optional[str] = Field(None, max_length=5000)
     status: Optional[CampaignStatus] = None
     visibility: Optional[CampaignVisibility] = None
     max_players: Optional[int] = Field(None, ge=1, le=20)
@@ -85,6 +99,8 @@ class CampaignUpdate(BaseModel):
 class CampaignResponse(CampaignBase):
     """Schema for campaign response"""
     model_config = ConfigDict(from_attributes=True)
+    
+    description: Optional[str] = None  # Override to make optional in responses
     
     id: UUID
     dm_user_id: UUID
@@ -121,12 +137,12 @@ class CampaignListItem(BaseModel):
 
 class CharacterBase(BaseModel):
     """Base character fields"""
-    name: str = Field(..., min_length=1, max_length=100)
+    name: str = Field(..., min_length=1, max_length=100, description="Character name")
     race: Optional[str] = Field(None, max_length=50)
     character_class: Optional[str] = Field(None, max_length=100)
     level: int = Field(default=1, ge=1, le=20)
-    background: Optional[str] = None
-    alignment: Optional[str] = None
+    background: Optional[str] = Field(None, max_length=2000)
+    alignment: Optional[str] = Field(None, max_length=50)
 
 
 class CharacterCreate(CharacterBase):
@@ -142,16 +158,16 @@ class CharacterUpdate(BaseModel):
     """Schema for updating a character"""
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     level: Optional[int] = Field(None, ge=1, le=20)
-    current_hp: Optional[int] = None
-    temp_hp: Optional[int] = None
-    max_hp: Optional[int] = None
-    armor_class: Optional[int] = None
-    description: Optional[str] = None
-    backstory: Optional[str] = None
-    avatar_url: Optional[str] = None
+    current_hp: Optional[int] = Field(None, ge=0)
+    temp_hp: Optional[int] = Field(None, ge=0)
+    max_hp: Optional[int] = Field(None, ge=1)
+    armor_class: Optional[int] = Field(None, ge=1, le=99)
+    description: Optional[str] = Field(None, max_length=2000)
+    backstory: Optional[str] = Field(None, max_length=10000)
+    avatar_url: Optional[str] = Field(None, max_length=500)
     equipment: Optional[list] = None
     spells: Optional[list] = None
-    player_notes: Optional[str] = None
+    player_notes: Optional[str] = Field(None, max_length=10000)
 
 
 class CharacterResponse(CharacterBase):

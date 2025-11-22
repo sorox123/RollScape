@@ -16,7 +16,7 @@ export default function Dashboard() {
   const loadServiceStatus = async () => {
     try {
       const response = await apiStatus.getServices()
-      setServiceStatus(response.data)
+      setServiceStatus(response.data || { database: false, redis: false, openai: false, supabase: false })
     } catch (error) {
       console.error('Failed to load service status:', error)
     } finally {

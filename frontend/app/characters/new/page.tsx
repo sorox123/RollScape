@@ -63,7 +63,9 @@ export default function NewCharacterPage() {
     try {
       setCreating(true)
       const response = await apiCharacters.create(formData)
-      router.push(`/characters/${response.data.id}`)
+      if (response.data) {
+        router.push(`/characters/${response.data.id}`)
+      }
     } catch (err: any) {
       if (err.response?.status === 501) {
         alert('Character creation requires authentication. This will be implemented when auth is added.')
@@ -82,7 +84,9 @@ export default function NewCharacterPage() {
       try {
         // Roll 4d6, drop lowest
         const response = await apiDice.roll('4d6dl1')
-        scores[ability] = response.data.result
+        if (response.data) {
+          scores[ability] = response.data.total
+        }
       } catch (err) {
         console.error('Failed to roll:', err)
       }

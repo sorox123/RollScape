@@ -9,13 +9,15 @@ from typing import List, Optional
 from uuid import UUID
 
 from database import get_db
+from auth import get_current_user
 from schemas import (
     CharacterCreate,
     CharacterUpdate,
     CharacterResponse,
     MessageResponse
 )
-from models import Character, Campaign
+from models import Character, Campaign, User
+from utils.sanitize import sanitize_html
 
 router = APIRouter(prefix="/api/characters", tags=["characters"])
 
@@ -23,7 +25,8 @@ router = APIRouter(prefix="/api/characters", tags=["characters"])
 @router.post("/", response_model=CharacterResponse, status_code=status.HTTP_201_CREATED)
 async def create_character(
     character_data: CharacterCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Create a new character.
@@ -41,13 +44,23 @@ async def create_character(
             detail="Campaign not found"
         )
     
-    # TODO: Verify user is in the campaign or is DM
-    # TODO: Get current user ID from auth token
+    # Sanitize text fields
+    character_dict = character_data.model_dump()
+    character_dict['name'] = sanitize_html(character_dict['name'])
+    if character_dict.get('background'):
+        character_dict['background'] = sanitize_html(character_dict['background'])
     
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Authentication required"
+    # Create character linked to user
+    new_character = Character(
+        **character_dict,
+        user_id=current_user.id
     )
+    
+    db.add(new_character)
+    db.commit()
+    db.refresh(new_character)
+    
+    return new_character
 
 
 @router.get("/campaign/{campaign_id}", response_model=List[CharacterResponse])
@@ -92,7 +105,8 @@ async def get_campaign_characters(
 @router.get("/{character_id}", response_model=CharacterResponse)
 async def get_character(
     character_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Get character details by ID"""
     character = db.query(Character).filter(Character.id == character_id).first()
@@ -103,7 +117,13 @@ async def get_character(
             detail="Character not found"
         )
     
-    # TODO: Verify user has access to this character
+    # Verify user has access (owns character or is campaign DM)
+    campaign = db.query(Campaign).filter(Campaign.id == character.campaign_id).first()
+    if character.user_id != current_user.id and (not campaign or campaign.dm_user_id != current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have access to this character"
+        )
     
     return character
 
@@ -112,7 +132,8 @@ async def get_character(
 async def update_character(
     character_id: UUID,
     updates: CharacterUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Update character details.
@@ -128,11 +149,20 @@ async def update_character(
             detail="Character not found"
         )
     
-    # TODO: Verify user owns character or is campaign DM
+    # Verify user owns character or is campaign DM
+    campaign = db.query(Campaign).filter(Campaign.id == character.campaign_id).first()
+    if character.user_id != current_user.id and (not campaign or campaign.dm_user_id != current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to update this character"
+        )
     
-    # Update fields
+    # Update fields with sanitization
     update_data = updates.model_dump(exclude_unset=True)
     for field, value in update_data.items():
+        # Sanitize text fields to prevent XSS
+        if field in ['name', 'description', 'backstory', 'background', 'player_notes'] and isinstance(value, str):
+            value = sanitize_html(value)
         setattr(character, field, value)
     
     db.commit()
@@ -144,7 +174,8 @@ async def update_character(
 @router.delete("/{character_id}", response_model=MessageResponse)
 async def delete_character(
     character_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Delete a character.
@@ -159,7 +190,13 @@ async def delete_character(
             detail="Character not found"
         )
     
-    # TODO: Verify user owns character or is campaign DM
+    # Verify user owns character or is campaign DM
+    campaign = db.query(Campaign).filter(Campaign.id == character.campaign_id).first()
+    if character.user_id != current_user.id and (not campaign or campaign.dm_user_id != current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to delete this character"
+        )
     
     # Soft delete
     character.is_active = False
@@ -196,7 +233,7 @@ async def apply_damage(
     # Apply damage (temp HP first, then regular HP)
     remaining_damage = damage
     
-    if character.temp_hp > 0:
+    if character.temp_hp and character.temp_hp > 0:
         if remaining_damage >= character.temp_hp:
             remaining_damage -= character.temp_hp
             character.temp_hp = 0

@@ -6,25 +6,7 @@ import {
   MessageCircle, Plus, Search, ArrowLeft, Users
 } from 'lucide-react'
 import { apiMessages } from '@/lib/api'
-
-interface Conversation {
-  id: string
-  type: 'direct' | 'group' | 'campaign'
-  name?: string
-  campaign_id?: string
-  created_at: string
-  last_message?: {
-    content: string
-    sender_name: string
-    created_at: string
-  }
-  unread_count: number
-  participants: Array<{
-    user_id: string
-    username: string
-    is_online: boolean
-  }>
-}
+import type { Conversation } from '@/lib/types/api'
 
 export default function MessagesPage() {
   const router = useRouter()
@@ -41,7 +23,7 @@ export default function MessagesPage() {
     try {
       setLoading(true)
       const response = await apiMessages.getInbox(50)
-      setConversations(response.data)
+      setConversations(response.data || [])
     } catch (err: any) {
       console.error('Failed to load inbox:', err)
     } finally {
@@ -53,12 +35,12 @@ export default function MessagesPage() {
     const query = searchQuery.toLowerCase()
     return (
       conv.name?.toLowerCase().includes(query) ||
-      conv.participants.some(p => p.username.toLowerCase().includes(query)) ||
+      conv.participants?.some(p => p.username.toLowerCase().includes(query)) ||
       conv.last_message?.content.toLowerCase().includes(query)
     )
   })
 
-  const totalUnread = conversations.reduce((sum, conv) => sum + conv.unread_count, 0)
+  const totalUnread = conversations.reduce((sum, conv) => sum + (conv.unread_count || 0), 0)
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -284,7 +266,9 @@ function NewConversationModal({ onClose, onCreated }: any) {
         type: conversationType,
         name: conversationType === 'group' ? groupName : undefined,
       })
-      onCreated(response.data.id)
+      if (response.data?.id) {
+        onCreated(response.data.id)
+      }
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Failed to create conversation')
     } finally {

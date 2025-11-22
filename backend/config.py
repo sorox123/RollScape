@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     debug: bool = True
     secret_key: str = "dev-secret-key-change-in-production"
     
+    # Mock Mode - Set to True for free development without API costs
+    mock_mode: bool = True
+    
     # API
     api_host: str = "0.0.0.0"
     api_port: int = 8000
@@ -26,14 +29,21 @@ class Settings(BaseSettings):
     
     # OpenAI (optional for now)
     openai_api_key: str | None = None
+    openai_enabled: bool = True
     
     # Supabase (optional for now)
     supabase_url: str | None = None
     supabase_key: str | None = None
+    supabase_enabled: bool = True
+    
+    # Service Toggles
+    redis_enabled: bool = True
+    websocket_enabled: bool = True
     
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "ignore"  # Ignore extra fields in .env file
     
     @property
     def cors_origins_list(self) -> List[str]:

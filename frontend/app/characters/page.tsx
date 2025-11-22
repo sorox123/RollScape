@@ -22,7 +22,7 @@ export default function CharactersPage() {
       // TODO: Get user's campaign ID from context/auth
       const campaignId = 'demo-campaign-id'
       const response = await apiCharacters.getCampaignCharacters(campaignId, false)
-      setCharacters(response.data)
+      setCharacters(response.data || [])
       setError(null)
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load characters')

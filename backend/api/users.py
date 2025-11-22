@@ -3,12 +3,13 @@ User API endpoints.
 Handles user registration, profiles, and subscription management.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Path
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
 
 from database import get_db
+from auth import get_current_user as get_authenticated_user
 from schemas import UserCreate, UserUpdate, UserResponse, MessageResponse
 from models import User
 
@@ -53,25 +54,25 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user(db: Session = Depends(get_db)):
+async def get_current_user_profile(
+    current_user: User = Depends(get_authenticated_user)
+):
     """
     Get current authenticated user.
     
-    Note: In production, this will use Supabase Auth token.
-    For now, returns mock data for development.
+    In mock mode: Returns test user (auto-created).
+    In production: Uses Supabase Auth token.
     """
-    # TODO: Get user from auth token
-    # TODO: Integrate with Supabase Auth
-    
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Authentication not yet implemented. Set up Supabase first."
-    )
+    return current_user
 
 
 @router.get("/{user_id}", response_model=UserResponse)
-async def get_user(user_id: UUID, db: Session = Depends(get_db)):
+async def get_user(
+    user_id: UUID = Path(..., description="User UUID"),
+    db: Session = Depends(get_db)
+):
     """Get user by ID (public profile view)"""
+    # FastAPI handles UUID validation automatically - invalid UUIDs return 422
     user = db.query(User).filter(User.id == user_id).first()
     
     if not user:
@@ -86,29 +87,63 @@ async def get_user(user_id: UUID, db: Session = Depends(get_db)):
 @router.patch("/me", response_model=UserResponse)
 async def update_profile(
     updates: UserUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_authenticated_user)
 ):
     """
     Update current user's profile.
     
     Note: Requires authentication.
     """
-    # TODO: Get current user from auth token
+    # Update fields
+    update_data = updates.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(current_user, field, value)
     
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Authentication not yet implemented"
-    )
+    db.commit()
+    db.refresh(current_user)
+    
+    return current_user
 
 
 @router.get("/me/quota", response_model=dict)
-async def get_quota_status(db: Session = Depends(get_db)):
+async def get_quota_status(
+    current_user: User = Depends(get_authenticated_user)
+):
     """
     Get current user's quota usage and limits.
     """
-    # TODO: Get current user from auth token
+    from models.user import SubscriptionTier
     
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Authentication not yet implemented"
-    )
+    # Define tier limits
+    tier_limits = {
+        SubscriptionTier.FREE: {
+            "ai_images": 5,
+            "ai_players": 1,
+            "pdf_imports": 0
+        },
+        SubscriptionTier.CREATOR: {
+            "ai_images": 50,
+            "ai_players": 3,
+            "pdf_imports": 3
+        },
+        SubscriptionTier.MASTER: {
+            "ai_images": -1,  # unlimited
+            "ai_players": -1,
+            "pdf_imports": -1
+        }
+    }
+    
+    limits = tier_limits.get(current_user.subscription_tier, tier_limits[SubscriptionTier.FREE])
+    
+    return {
+        "tier": current_user.subscription_tier,
+        "status": current_user.subscription_status,
+        "usage": {
+            "ai_images": current_user.monthly_ai_images_used,
+            "ai_players": current_user.monthly_ai_players_used,
+            "pdf_imports": current_user.pdf_imports_count
+        },
+        "limits": limits,
+        "reset_date": current_user.quota_reset_date
+    }

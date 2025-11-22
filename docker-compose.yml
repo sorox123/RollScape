@@ -1,0 +1,83 @@
+# RollScape Development Stack
+# Includes PostgreSQL + Redis for local development
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: rollscape-postgres
+    environment:
+      POSTGRES_DB: rollscape
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis Cache (for sessions, real-time state)
+  redis:
+    image: redis:7-alpine
+    container_name: rollscape-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # Optional: pgAdmin (Database GUI)
+  # Uncomment if you want a web UI for PostgreSQL
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   container_name: rollscape-pgadmin
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: admin@rollscape.dev
+  #     PGADMIN_DEFAULT_PASSWORD: admin
+  #   ports:
+  #     - "5050:80"
+  #   volumes:
+  #     - pgadmin_data:/var/lib/pgadmin
+  #   depends_on:
+  #     - postgres
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  # pgadmin_data:
+  #   driver: local
+
+# Usage:
+#
+# Start all services:
+#   docker-compose up -d
+#
+# Stop all services:
+#   docker-compose down
+#
+# View logs:
+#   docker-compose logs -f
+#
+# Reset database (WARNING: deletes all data):
+#   docker-compose down -v
+#   docker-compose up -d
+#
+# Connect to PostgreSQL:
+#   psql -h localhost -U postgres -d rollscape
+#
+# Connect to Redis:
+#   redis-cli -h localhost -p 6379

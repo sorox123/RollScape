@@ -7,14 +7,9 @@ import {
   MessageCircle, Search, Shield, ArrowLeft 
 } from 'lucide-react'
 import { apiFriends } from '@/lib/api'
+import type { Friendship } from '@/lib/types/api'
 
-interface Friend {
-  id: string
-  user_id_1: string
-  user_id_2: string
-  status: 'pending' | 'accepted' | 'declined' | 'blocked'
-  requester_id: string
-  created_at: string
+interface Friend extends Friendship {
   friend_info?: {
     id: string
     username: string
@@ -22,12 +17,8 @@ interface Friend {
   }
 }
 
-interface BlockedUser {
-  id: string
-  blocker_id: string
-  blocked_id: string
+interface BlockedUser extends Friendship {
   reason?: string
-  created_at: string
   blocked_user_info?: {
     username: string
   }
@@ -56,13 +47,13 @@ export default function FriendsPage() {
       
       if (activeTab === 'friends') {
         const response = await apiFriends.getFriends()
-        setFriends(response.data)
+        setFriends(response.data || [])
       } else if (activeTab === 'pending') {
         const response = await apiFriends.getPending()
-        setPending(response.data)
+        setPending(response.data || [])
       } else if (activeTab === 'blocked') {
         const response = await apiFriends.getBlocked()
-        setBlocked(response.data)
+        setBlocked(response.data || [])
       }
     } catch (err: any) {
       console.error('Failed to load:', err)
@@ -255,7 +246,7 @@ export default function FriendsPage() {
                   <FriendCard
                     key={friend.id}
                     friend={friend}
-                    onMessage={(friendId) => router.push(`/messages?user=${friendId}`)}
+                    onMessage={(friendId: string) => router.push(`/messages?user=${friendId}`)}
                     onRemove={() => removeFriend(friend.id)}
                     onBlock={() => blockUser(friend.friend_info!.id)}
                   />
@@ -305,7 +296,7 @@ export default function FriendsPage() {
                 <BlockedUserCard
                   key={block.id}
                   block={block}
-                  onUnblock={() => unblockUser(block.blocked_id)}
+                  onUnblock={() => block.blocked_id && unblockUser(block.blocked_id)}
                 />
               ))
             )}

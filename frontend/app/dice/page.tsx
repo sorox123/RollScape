@@ -34,8 +34,12 @@ export default function DiceRollerPage() {
       setRolling(true)
       const response = await apiDice.roll(rollNotation)
       
+      if (!response.data) {
+        throw new Error('No response data')
+      }
+      
       // Extract individual roll values from the response
-      const rollValues = response.data.rolls?.map((r: any) => r.result) || [response.data.total]
+      const rollValues = response.data.rolls || [response.data.total]
       
       const result: RollResult = {
         id: Date.now().toString(),

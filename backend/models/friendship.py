@@ -3,7 +3,7 @@ Friendship and social relationship models.
 """
 
 from sqlalchemy import Column, String, DateTime, Enum as SQLEnum, ForeignKey, UniqueConstraint, Index
-from sqlalchemy.dialects.postgresql import UUID
+
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import uuid
@@ -27,14 +27,14 @@ class Friendship(Base):
     """
     __tablename__ = "friendships"
     
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     
     # Always store with lower UUID first for consistency
-    user_id_1 = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    user_id_2 = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    user_id_1 = Column(GUID(), ForeignKey("users.id"), nullable=False)
+    user_id_2 = Column(GUID(), ForeignKey("users.id"), nullable=False)
     
     # Who initiated the friendship
-    requester_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    requester_id = Column(GUID(), ForeignKey("users.id"), nullable=False)
     
     status = Column(SQLEnum(FriendshipStatus), nullable=False, default=FriendshipStatus.PENDING)
     
@@ -87,11 +87,11 @@ class BlockedUser(Base):
     """
     __tablename__ = "blocked_users"
     
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     
     # Who blocked whom
-    blocker_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    blocked_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    blocker_id = Column(GUID(), ForeignKey("users.id"), nullable=False)
+    blocked_id = Column(GUID(), ForeignKey("users.id"), nullable=False)
     
     reason = Column(String, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)

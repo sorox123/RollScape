@@ -3,10 +3,11 @@ Campaign model - D&D campaign/game management.
 """
 
 from sqlalchemy import Column, String, Boolean, DateTime, Enum, Integer, Text, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
+
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
+from db_types import GUID, FlexJSON
 import uuid
 import enum
 
@@ -32,12 +33,12 @@ class Campaign(Base):
     __tablename__ = "campaigns"
     
     # Primary
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     name = Column(String(200), nullable=False)
     description = Column(Text)
     
     # Ownership
-    dm_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    dm_user_id = Column(GUID(), ForeignKey("users.id"), nullable=False)
     
     # Status
     status = Column(
@@ -79,6 +80,9 @@ class Campaign(Base):
     
     # Settings (JSON string)
     settings = Column(Text, default='{}')
+    
+    # Relationships
+    members = relationship("CampaignMember", back_populates="campaign", cascade="all, delete-orphan")
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

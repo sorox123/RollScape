@@ -23,8 +23,10 @@ export default function CombatStats({ character, isEditing, onSave }: CombatStat
     
     try {
       const response = await apiCharacters.applyDamage(character.id, damageAmount)
-      setCurrentHp(response.data.current_hp)
-      setTempHp(response.data.temp_hp)
+      if (response.data) {
+        setCurrentHp(response.data.current_hp)
+        setTempHp(response.data.temp_hp)
+      }
       setDamageAmount(0)
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Failed to apply damage')
@@ -36,7 +38,9 @@ export default function CombatStats({ character, isEditing, onSave }: CombatStat
     
     try {
       const response = await apiCharacters.applyHealing(character.id, healAmount)
-      setCurrentHp(response.data.current_hp)
+      if (response.data) {
+        setCurrentHp(response.data.current_hp)
+      }
       setHealAmount(0)
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Failed to apply healing')

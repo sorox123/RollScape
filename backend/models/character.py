@@ -3,9 +3,10 @@ Character model - Player characters and NPCs.
 """
 
 from sqlalchemy import Column, String, Boolean, DateTime, Integer, Text, ForeignKey, Enum
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
+from db_types import GUID, FlexJSON
 import uuid
 import enum
 
@@ -22,12 +23,12 @@ class Character(Base):
     __tablename__ = "characters"
     
     # Primary
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     name = Column(String(100), nullable=False)
     
     # Ownership
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)  # Null for NPCs
-    campaign_id = Column(UUID(as_uuid=True), ForeignKey("campaigns.id"), nullable=False)
+    user_id = Column(GUID(), ForeignKey("users.id"), nullable=True)  # Null for NPCs
+    campaign_id = Column(GUID(), ForeignKey("campaigns.id"), nullable=False)
     
     # Type
     character_type = Column(
@@ -45,9 +46,9 @@ class Character(Base):
     alignment = Column(String(50))
     
     # Stats (stored as JSON for flexibility across rule systems)
-    ability_scores = Column(JSONB, default={})  # {"str": 10, "dex": 14, ...}
-    skills = Column(JSONB, default={})
-    saving_throws = Column(JSONB, default={})
+    ability_scores = Column(FlexJSON, default={})  # {"str": 10, "dex": 14, ...}
+    skills = Column(FlexJSON, default={})
+    saving_throws = Column(FlexJSON, default={})
     
     # Combat stats
     max_hp = Column(Integer, default=10)
@@ -58,11 +59,11 @@ class Character(Base):
     speed = Column(Integer, default=30)
     
     # Features
-    proficiencies = Column(JSONB, default=[])
-    languages = Column(JSONB, default=[])
-    features = Column(JSONB, default=[])
-    equipment = Column(JSONB, default=[])
-    spells = Column(JSONB, default=[])
+    proficiencies = Column(FlexJSON, default=[])
+    languages = Column(FlexJSON, default=[])
+    features = Column(FlexJSON, default=[])
+    equipment = Column(FlexJSON, default=[])
+    spells = Column(FlexJSON, default=[])
     
     # Description
     description = Column(Text)
@@ -86,6 +87,9 @@ class Character(Base):
     # Notes
     dm_notes = Column(Text)  # Private DM notes
     player_notes = Column(Text)  # Player's own notes
+    
+    # Relationships
+    active_effects = relationship("CharacterEffect", back_populates="character", cascade="all, delete-orphan")
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

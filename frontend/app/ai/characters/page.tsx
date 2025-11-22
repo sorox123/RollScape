@@ -45,7 +45,7 @@ interface Character {
 export default function CharacterArtPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const characterIdFromUrl = searchParams.get('characterId')
+  const characterIdFromUrl = searchParams?.get('characterId') || null
 
   const [styles, setStyles] = useState<CharacterStyle[]>([])
   const [selectedStyle, setSelectedStyle] = useState<CharacterStyle | null>(null)
