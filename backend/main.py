@@ -11,7 +11,7 @@ from fastapi.exceptions import RequestValidationError
 from config import settings
 
 # Import routers
-from api import users, campaigns, characters, dice, dm, player_agent, game_session, status, friends, messaging, ai_images, pdf_import
+from api import users, campaigns, characters, dice, dm, player_agent, game_session, status, friends, messaging, ai_images, pdf_import, combat
 
 app = FastAPI(
     title="RollScape API",
@@ -68,6 +68,7 @@ app.include_router(friends.router)
 app.include_router(messaging.router)
 app.include_router(ai_images.router)
 app.include_router(pdf_import.router)
+app.include_router(combat.router)
 
 @app.get("/")
 async def root():
