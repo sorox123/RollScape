@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Sparkles, Plus, Trash2, CheckCircle, Circle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Sparkles, Plus, Trash2, CheckCircle, Circle, BookOpen } from 'lucide-react'
 import { Character, Spell, SpellSlots } from '@/lib/types/character'
 
 interface SpellsListProps {
@@ -14,6 +14,46 @@ export default function SpellsList({ character, isEditing, onSave }: SpellsListP
   const [filterLevel, setFilterLevel] = useState<number | 'all'>('all')
   const [showPreparedOnly, setShowPreparedOnly] = useState(false)
   const [newSpell, setNewSpell] = useState<Partial<Spell> | null>(null)
+  const [showBrowser, setShowBrowser] = useState(false)
+
+  // Load spellbook from API
+  useEffect(() => {
+    if (character.id) {
+      fetchSpellbook()
+    }
+  }, [character.id])
+
+  async function fetchSpellbook() {
+    try {
+      const response = await fetch(
+        `http://localhost:8000/api/spells/characters/${character.id}/spellbook`
+      )
+      if (response.ok) {
+        const data = await response.json()
+        // Transform API data to match existing Spell type
+        const apiSpells = data.map((entry: any) => ({
+          id: entry.spell.id,
+          name: entry.spell.name,
+          level: entry.spell.level,
+          school: entry.spell.school,
+          castingTime: entry.spell.casting_time,
+          range: entry.spell.range,
+          components: entry.spell.components,
+          duration: entry.spell.duration,
+          description: entry.spell.description,
+          prepared: entry.prepared,
+          ritual: entry.spell.ritual,
+          concentration: entry.spell.concentration,
+          damage: entry.spell.damage_dice,
+          damageType: entry.spell.damage_type,
+          savingThrow: entry.spell.save_type,
+        }))
+        setSpells(apiSpells)
+      }
+    } catch (error) {
+      console.error('Error fetching spellbook:', error)
+    }
+  }
 
   function handleSave() {
     onSave({ spells, spell_slots: spellSlots })
@@ -42,14 +82,43 @@ export default function SpellsList({ character, isEditing, onSave }: SpellsListP
     setNewSpell(null)
   }
 
-  function deleteSpell(id: string) {
-    setSpells(spells.filter(spell => spell.id !== id))
+  async function deleteSpell(id: string) {
+    try {
+      const response = await fetch(
+        `http://localhost:8000/api/spells/characters/${character.id}/spellbook/${id}`,
+        { method: 'DELETE' }
+      )
+      
+      if (response.ok) {
+        setSpells(spells.filter(spell => spell.id !== id))
+      }
+    } catch (error) {
+      console.error('Error deleting spell:', error)
+    }
   }
 
-  function togglePrepared(id: string) {
-    setSpells(spells.map(spell =>
-      spell.id === id ? { ...spell, prepared: !spell.prepared } : spell
-    ))
+  async function togglePrepared(id: string) {
+    const spell = spells.find(s => s.id === id)
+    if (!spell) return
+
+    try {
+      const response = await fetch(
+        `http://localhost:8000/api/spells/characters/${character.id}/spellbook/${id}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prepared: !spell.prepared })
+        }
+      )
+      
+      if (response.ok) {
+        setSpells(spells.map(s =>
+          s.id === id ? { ...s, prepared: !s.prepared } : s
+        ))
+      }
+    } catch (error) {
+      console.error('Error updating spell:', error)
+    }
   }
 
   function useSpellSlot(level: number) {
@@ -113,6 +182,13 @@ export default function SpellsList({ character, isEditing, onSave }: SpellsListP
           </p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => setShowBrowser(!showBrowser)}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center gap-2 transition"
+          >
+            <BookOpen className="w-5 h-5" />
+            {showBrowser ? 'Close Browser' : 'Browse Spells'}
+          </button>
           {isEditing && (
             <>
               <button
@@ -120,11 +196,11 @@ export default function SpellsList({ character, isEditing, onSave }: SpellsListP
                 className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg flex items-center gap-2 transition"
               >
                 <Plus className="w-5 h-5" />
-                Add Spell
+                Add Custom
               </button>
               <button
                 onClick={handleSave}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition"
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition"
               >
                 Save Changes
               </button>
@@ -314,6 +390,30 @@ export default function SpellsList({ character, isEditing, onSave }: SpellsListP
               >
                 Cancel
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Spell Browser Modal */}
+      {showBrowser && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-900 rounded-lg w-full max-w-6xl h-[80vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+              <h2 className="text-xl font-bold">Browse Spell Library</h2>
+              <button
+                onClick={() => setShowBrowser(false)}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition"
+              >
+                Close
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <iframe
+                src={`/spells?characterId=${character.id}&embedded=true`}
+                className="w-full h-full border-0"
+                title="Spell Browser"
+              />
             </div>
           </div>
         </div>
