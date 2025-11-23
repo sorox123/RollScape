@@ -293,16 +293,31 @@ export const apiCharacters = {
 // AI Images
 export const apiAIImages = {
   generate: (data: ImageGenerateRequest) => handleResponse<ImageGenerateResponse>(
-    apiClient.post('/api/ai-images/generate', data)
+    apiClient.post('/api/ai/generate-image', data)
   ),
-  getHistory: (limit?: number, type?: string) => handleResponse<ImageGenerateResponse[]>(
-    apiClient.get('/api/ai-images/history', { params: { limit, type } })
+  generateCharacterArt: (data: any) => handleResponse<ImageGenerateResponse>(
+    apiClient.post('/api/ai/generate-character-art', data)
   ),
-  getImage: (imageId: string) => handleResponse<ImageGenerateResponse>(
-    apiClient.get(`/api/ai-images/${imageId}`)
+  generateMap: (data: any) => handleResponse<ImageGenerateResponse>(
+    apiClient.post('/api/ai/generate-map', data)
   ),
-  delete: (imageId: string) => handleResponse<MessageResponse>(
-    apiClient.delete(`/api/ai-images/${imageId}`)
+  generateToken: (data: any) => handleResponse<ImageGenerateResponse>(
+    apiClient.post('/api/ai/generate-token', data)
+  ),
+  getStatus: () => handleResponse<any>(
+    apiClient.get('/api/ai/status')
+  ),
+  getEnvironmentTemplates: () => handleResponse<any>(
+    apiClient.get('/api/ai/templates/environments')
+  ),
+  getCharacterStyles: () => handleResponse<any>(
+    apiClient.get('/api/ai/templates/character-styles')
+  ),
+  getCampaignImages: (campaignId: string, imageType?: string, limit?: number) => handleResponse<any>(
+    apiClient.get(`/api/ai/images/${campaignId}`, { params: { image_type: imageType, limit } })
+  ),
+  getCharacterImages: (characterId: string) => handleResponse<any>(
+    apiClient.get(`/api/ai/images/character/${characterId}`)
   ),
 }
 

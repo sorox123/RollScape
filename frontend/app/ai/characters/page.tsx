@@ -6,9 +6,11 @@ import {
   User, Wand2, ArrowLeft, Info, Download, 
   RefreshCw, Sparkles, Image as ImageIcon
 } from 'lucide-react'
-import axios from 'axios'
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
+import { useToast } from '@/components/ui/ToastContainer'
+import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import Button from '@/components/ui/Button'
+import TextArea from '@/components/ui/TextArea'
+import { apiAIImages, apiCharacters } from '@/lib/api'
 
 interface CharacterStyle {
   name: string
@@ -44,6 +46,7 @@ interface Character {
 
 export default function CharacterArtPage() {
   const router = useRouter()
+  const toast = useToast()
   const searchParams = useSearchParams()
   const characterIdFromUrl = searchParams?.get('characterId') || null
 
@@ -96,34 +99,19 @@ export default function CharacterArtPage() {
 
   async function loadCharacters() {
     try {
-      // TODO: Replace with actual API call
-      const mockCharacters: Character[] = [
-        {
-          id: 'char-1',
-          name: 'Thorin Ironforge',
-          race: 'Dwarf',
-          class: 'Fighter',
-          level: 5,
-          appearance: 'Stocky build with a long braided beard, weathered face, battle scars',
-          background: 'Former royal guard seeking redemption after failing to protect his king',
-          alignment: 'Lawful Good',
-          personality_traits: 'Honorable, stubborn, protective of allies'
-        },
-        {
-          id: 'char-2',
-          name: 'Lyra Moonwhisper',
-          race: 'Elf',
-          class: 'Wizard',
-          level: 7,
-          appearance: 'Tall and graceful with silver hair, piercing blue eyes, mystical tattoos',
-          background: 'Arcane researcher from the Tower of High Magic',
-          alignment: 'Neutral Good',
-          personality_traits: 'Curious, intellectual, sometimes aloof'
-        }
-      ]
-      setCharacters(mockCharacters)
+      const campaignId = 'demo-campaign-id' // TODO: Get from context
+      const response = await apiCharacters.getCampaignCharacters(campaignId, false)
+      
+      if (response.error) {
+        toast.warning('No Characters', 'Create characters in the Characters page first')
+        setCharacters([])
+      } else {
+        setCharacters(response.data || [])
+      }
     } catch (err) {
       console.error('Failed to load characters:', err)
+      toast.error('Failed to Load', 'Could not load your characters')
+      setCharacters([])
     }
   }
 
@@ -156,7 +144,7 @@ export default function CharacterArtPage() {
 
   async function generateArt() {
     if (!characterName.trim() || !race.trim() || !charClass.trim()) {
-      setError('Please fill in character name, race, and class')
+      toast.error('Missing Info', 'Please fill in character name, race, and class')
       return
     }
 
@@ -164,7 +152,7 @@ export default function CharacterArtPage() {
     setError(null)
 
     try {
-      const response = await axios.post(`${API_BASE}/api/ai/generate-character-art`, {
+      const response = await apiAIImages.generateCharacterArt({
         character_id: selectedCharacter?.id || `char-${Date.now()}`,
         character_name: characterName,
         race,
@@ -178,10 +166,25 @@ export default function CharacterArtPage() {
         quality,
       })
 
-      setGeneratedImage(response.data)
+      if (response.error) {
+        const detail = response.error.detail
+        if (typeof detail === 'object' && detail.error === 'subscription_required') {
+          toast.warning('Subscription Required', detail.message)
+        } else if (typeof detail === 'object' && detail.error === 'quota_exceeded') {
+          toast.error('Quota Exceeded', detail.message)
+        } else {
+          toast.error('Generation Failed', response.error.error || 'Unknown error')
+        }
+        setError(response.error.error || 'Failed to generate')
+      } else {
+        setGeneratedImage(response.data!)
+        toast.success('Art Generated!', `${characterName} portrait created successfully`)
+      }
     } catch (err: any) {
       console.error('Failed to generate character art:', err)
-      setError(err.response?.data?.detail || 'Failed to generate character art')
+      const errorMsg = 'Failed to generate character art'
+      setError(errorMsg)
+      toast.error('Generation Failed', errorMsg)
     } finally {
       setGenerating(false)
     }

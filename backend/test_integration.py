@@ -32,22 +32,22 @@ def print_header(text: str):
 
 def print_step(step: str):
     """Print step"""
-    print(f"{Color.BLUE}▶ {step}{Color.END}")
+    print(f"{Color.BLUE}> {step}{Color.END}")
 
 
 def print_success(message: str):
     """Print success"""
-    print(f"{Color.GREEN}✓ {message}{Color.END}")
+    print(f"{Color.GREEN}[OK] {message}{Color.END}")
 
 
 def print_error(message: str):
     """Print error"""
-    print(f"{Color.RED}✗ {message}{Color.END}")
+    print(f"{Color.RED}[ERROR] {message}{Color.END}")
 
 
 def print_info(message: str):
     """Print info"""
-    print(f"{Color.YELLOW}ℹ {message}{Color.END}")
+    print(f"{Color.YELLOW}[INFO] {message}{Color.END}")
 
 
 def make_request(method: str, url: str, **kwargs) -> requests.Response:
@@ -520,21 +520,21 @@ def test_complete_user_journey():
         
         print(f"{Color.GREEN}{Color.BOLD}All phases completed without errors!{Color.END}\n")
         print("Resources created during test:")
-        print(f"  • User ID: {resources['user_id']}")
-        print(f"  • Campaign ID: {resources['campaign_id']}")
-        print(f"  • Characters: {len(resources['character_ids'])} created")
-        print(f"  • Session ID: {resources['session_id']}")
-        print(f"  • Combat ID: {resources['combat_id']}")
+        print(f"  - User ID: {resources['user_id']}")
+        print(f"  - Campaign ID: {resources['campaign_id']}")
+        print(f"  - Characters: {len(resources['character_ids'])} created")
+        print(f"  - Session ID: {resources['session_id']}")
+        print(f"  - Combat ID: {resources['combat_id']}")
         
-        print(f"\n{Color.CYAN}Complete user journey verified:{Color.END}")
-        print("  ✓ User authentication and profile management")
-        print("  ✓ Campaign creation and management")
-        print("  ✓ Character creation and tracking")
-        print("  ✓ Game session management")
-        print("  ✓ Combat encounter system")
-        print("  ✓ AI DM agent integration")
-        print("  ✓ Dice rolling mechanics")
-        print("  ✓ Chat and action logging")
+        print(f"  {Color.CYAN}Complete user journey verified:{Color.END}")
+        print("  [OK] User authentication and profile management")
+        print("  [OK] Campaign creation and management")
+        print("  [OK] Character creation and tracking")
+        print("  [OK] Game session management")
+        print("  [OK] Combat encounter system")
+        print("  [OK] AI DM agent integration")
+        print("  [OK] Dice rolling mechanics")
+        print("  [OK] Chat and action logging")
         
         return True
         

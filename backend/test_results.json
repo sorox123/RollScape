@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-11-22T22:09:23.460529",
+  "timestamp": "2025-11-22T22:13:15.161273",
   "summary": {
     "total": 35,
     "passed": 35,
@@ -12,245 +12,245 @@
       "name": "Health check",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:09.106255"
+      "timestamp": "2025-11-22T22:12:00.997574"
     },
     {
       "category": "Status",
       "name": "Mode check",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:11.171561"
+      "timestamp": "2025-11-22T22:12:03.062324"
     },
     {
       "category": "Status",
       "name": "Costs tracking",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:13.228809"
+      "timestamp": "2025-11-22T22:12:05.094458"
     },
     {
       "category": "Users",
       "name": "Get current user",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:15.303037"
+      "timestamp": "2025-11-22T22:12:07.157537"
     },
     {
       "category": "Users",
       "name": "Get quota",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:17.378789"
+      "timestamp": "2025-11-22T22:12:09.227365"
     },
     {
       "category": "Users",
       "name": "Update profile",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:19.416842"
+      "timestamp": "2025-11-22T22:12:11.304726"
     },
     {
       "category": "Users",
       "name": "Get user by ID",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:21.459999"
+      "timestamp": "2025-11-22T22:12:13.347307"
     },
     {
       "category": "Users",
       "name": "Invalid UUID handling",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:23.504122"
+      "timestamp": "2025-11-22T22:12:15.396388"
     },
     {
       "category": "Campaigns",
       "name": "Create campaign",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:25.570447"
+      "timestamp": "2025-11-22T22:12:17.496259"
     },
     {
       "category": "Campaigns",
       "name": "Validation - missing fields",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:27.635424"
+      "timestamp": "2025-11-22T22:12:19.542933"
     },
     {
       "category": "Campaigns",
       "name": "Get my campaigns",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:29.678763"
+      "timestamp": "2025-11-22T22:12:21.621055"
     },
     {
       "category": "Campaigns",
       "name": "Get campaign by ID",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:31.707119"
+      "timestamp": "2025-11-22T22:12:23.652922"
     },
     {
       "category": "Campaigns",
       "name": "Update campaign",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:33.799988"
+      "timestamp": "2025-11-22T22:12:25.773453"
     },
     {
       "category": "Campaigns",
       "name": "List campaigns",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:35.875453"
+      "timestamp": "2025-11-22T22:12:27.847531"
     },
     {
       "category": "Campaigns",
       "name": "Invalid campaign ID handling",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:37.925754"
+      "timestamp": "2025-11-22T22:12:29.924524"
     },
     {
       "category": "Characters",
       "name": "Create character",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:40.041775"
+      "timestamp": "2025-11-22T22:12:32.029557"
     },
     {
       "category": "Characters",
       "name": "Validation - missing campaign_id",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:42.103427"
+      "timestamp": "2025-11-22T22:12:34.076060"
     },
     {
       "category": "Characters",
       "name": "Get character by ID",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:44.178351"
+      "timestamp": "2025-11-22T22:12:36.135211"
     },
     {
       "category": "Characters",
       "name": "Update character",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:46.233397"
+      "timestamp": "2025-11-22T22:12:38.226677"
     },
     {
       "category": "Characters",
       "name": "Apply damage",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:50.396265"
+      "timestamp": "2025-11-22T22:12:42.334207"
     },
     {
       "category": "Characters",
       "name": "Apply healing",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:52.474134"
+      "timestamp": "2025-11-22T22:12:44.405524"
     },
     {
       "category": "Characters",
       "name": "Healing cap at max HP",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:54.554284"
+      "timestamp": "2025-11-22T22:12:46.451457"
     },
     {
       "category": "Characters",
       "name": "Get campaign characters",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:56.646568"
+      "timestamp": "2025-11-22T22:12:48.488760"
     },
     {
       "category": "DM",
       "name": "Test endpoint",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:08:58.712172"
+      "timestamp": "2025-11-22T22:12:50.526641"
     },
     {
       "category": "DM",
       "name": "Generate narrative response",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:09:00.767100"
+      "timestamp": "2025-11-22T22:12:52.582969"
     },
     {
       "category": "DM",
       "name": "Generate NPC",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:09:02.819627"
+      "timestamp": "2025-11-22T22:12:54.638758"
     },
     {
       "category": "DM",
       "name": "Get DM stats",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:09:04.870722"
+      "timestamp": "2025-11-22T22:12:56.671863"
     },
     {
       "category": "Dice",
       "name": "Roll single die",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:09:06.908093"
+      "timestamp": "2025-11-22T22:12:58.703549"
     },
     {
       "category": "Dice",
       "name": "Roll with modifier",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:09:08.974010"
+      "timestamp": "2025-11-22T22:13:00.757630"
     },
     {
       "category": "Dice",
       "name": "Roll multiple dice",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:09:11.022109"
+      "timestamp": "2025-11-22T22:13:02.819979"
     },
     {
       "category": "Dice",
       "name": "Invalid notation handling",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:09:13.081664"
+      "timestamp": "2025-11-22T22:13:04.863303"
     },
     {
       "category": "Security",
       "name": "SQL injection protection",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:09:17.222428"
+      "timestamp": "2025-11-22T22:13:08.974756"
     },
     {
       "category": "Security",
       "name": "XSS protection",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:09:19.297578"
+      "timestamp": "2025-11-22T22:13:11.050840"
     },
     {
       "category": "Validation",
       "name": "Long string rejection",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:09:21.376043"
+      "timestamp": "2025-11-22T22:13:13.122070"
     },
     {
       "category": "Validation",
       "name": "Negative value rejection",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-22T22:09:23.457159"
+      "timestamp": "2025-11-22T22:13:15.157451"
     }
   ],
   "bugs": []

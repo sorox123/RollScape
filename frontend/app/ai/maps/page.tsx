@@ -6,9 +6,9 @@ import {
   Map, Image as ImageIcon, Wand2, ArrowLeft, Info, 
   Download, RefreshCw, Plus, Sparkles
 } from 'lucide-react'
-import axios from 'axios'
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
+import { useToast } from '@/components/ui/ToastContainer'
+import Button from '@/components/ui/Button'
+import { apiAIImages } from '@/lib/api'
 
 interface Environment {
   name: string
@@ -32,6 +32,7 @@ interface GeneratedImage {
 
 export default function MapGeneratorPage() {
   const router = useRouter()
+  const toast = useToast()
   const [environments, setEnvironments] = useState<Environment[]>([])
   const [selectedEnvironment, setSelectedEnvironment] = useState<Environment | null>(null)
   
@@ -55,10 +56,18 @@ export default function MapGeneratorPage() {
 
   async function loadEnvironments() {
     try {
-      const response = await axios.get(`${API_BASE}/api/ai/templates/environments`)
-      setEnvironments(response.data.environments)
+      const response = await apiAIImages.getEnvironmentTemplates()
+      
+      if (response.error) {
+        toast.warning('Templates Unavailable', 'Could not load environment templates')
+        setEnvironments([])
+      } else {
+        setEnvironments(response.data?.environments || [])
+      }
     } catch (err) {
       console.error('Failed to load environments:', err)
+      toast.error('Load Failed', 'Could not load templates')
+      setEnvironments([])
     }
   }
 
@@ -79,7 +88,7 @@ export default function MapGeneratorPage() {
 
   async function generateMap() {
     if (!customEnvironment.trim()) {
-      setError('Please enter an environment type')
+      toast.error('Missing Info', 'Please enter an environment type')
       return
     }
 
@@ -87,7 +96,7 @@ export default function MapGeneratorPage() {
     setError(null)
 
     try {
-      const response = await axios.post(`${API_BASE}/api/ai/generate-map`, {
+      const response = await apiAIImages.generateMap({
         environment: customEnvironment,
         map_style: mapStyle,
         mood: mood || undefined,
@@ -97,10 +106,25 @@ export default function MapGeneratorPage() {
         quality,
       })
 
-      setGeneratedImage(response.data)
+      if (response.error) {
+        const detail = response.error.detail
+        if (typeof detail === 'object' && detail.error === 'subscription_required') {
+          toast.warning('Subscription Required', detail.message)
+        } else if (typeof detail === 'object' && detail.error === 'quota_exceeded') {
+          toast.error('Quota Exceeded', detail.message)
+        } else {
+          toast.error('Generation Failed', response.error.error || 'Unknown error')
+        }
+        setError(response.error.error || 'Failed to generate')
+      } else {
+        setGeneratedImage(response.data!)
+        toast.success('Map Generated!', `${customEnvironment} map created successfully`)
+      }
     } catch (err: any) {
       console.error('Failed to generate map:', err)
-      setError(err.response?.data?.detail || 'Failed to generate map')
+      const errorMsg = 'Failed to generate map'
+      setError(errorMsg)
+      toast.error('Generation Failed', errorMsg)
     } finally {
       setGenerating(false)
     }
