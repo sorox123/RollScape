@@ -1,10 +1,10 @@
 {
-  "timestamp": "2025-11-21T23:14:10.056131",
+  "timestamp": "2025-11-22T22:09:23.460529",
   "summary": {
     "total": 35,
-    "passed": 26,
-    "failed": 9,
-    "bugs_found": 3
+    "passed": 35,
+    "failed": 0,
+    "bugs_found": 0
   },
   "tests": [
     {
@@ -12,289 +12,246 @@
       "name": "Health check",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:12:56.336134"
+      "timestamp": "2025-11-22T22:08:09.106255"
     },
     {
       "category": "Status",
       "name": "Mode check",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:12:58.378378"
+      "timestamp": "2025-11-22T22:08:11.171561"
     },
     {
       "category": "Status",
       "name": "Costs tracking",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:00.418044"
+      "timestamp": "2025-11-22T22:08:13.228809"
     },
     {
       "category": "Users",
       "name": "Get current user",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:02.453704"
+      "timestamp": "2025-11-22T22:08:15.303037"
     },
     {
       "category": "Users",
       "name": "Get quota",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:04.491865"
+      "timestamp": "2025-11-22T22:08:17.378789"
     },
     {
       "category": "Users",
       "name": "Update profile",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:06.525633"
+      "timestamp": "2025-11-22T22:08:19.416842"
     },
     {
       "category": "Users",
       "name": "Get user by ID",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:08.546919"
+      "timestamp": "2025-11-22T22:08:21.459999"
     },
     {
       "category": "Users",
       "name": "Invalid UUID handling",
-      "passed": false,
-      "message": "Expected 404/422, got No response",
-      "timestamp": "2025-11-21T23:13:10.594388"
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-22T22:08:23.504122"
     },
     {
       "category": "Campaigns",
       "name": "Create campaign",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:12.656586"
+      "timestamp": "2025-11-22T22:08:25.570447"
     },
     {
       "category": "Campaigns",
       "name": "Validation - missing fields",
-      "passed": false,
+      "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:14.690980"
+      "timestamp": "2025-11-22T22:08:27.635424"
     },
     {
       "category": "Campaigns",
       "name": "Get my campaigns",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:16.730110"
+      "timestamp": "2025-11-22T22:08:29.678763"
     },
     {
       "category": "Campaigns",
       "name": "Get campaign by ID",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:18.774319"
+      "timestamp": "2025-11-22T22:08:31.707119"
     },
     {
       "category": "Campaigns",
       "name": "Update campaign",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:20.849271"
+      "timestamp": "2025-11-22T22:08:33.799988"
     },
     {
       "category": "Campaigns",
       "name": "List campaigns",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:22.908945"
+      "timestamp": "2025-11-22T22:08:35.875453"
     },
     {
       "category": "Campaigns",
       "name": "Invalid campaign ID handling",
-      "passed": false,
+      "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:24.934085"
+      "timestamp": "2025-11-22T22:08:37.925754"
     },
     {
       "category": "Characters",
       "name": "Create character",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:26.998435"
+      "timestamp": "2025-11-22T22:08:40.041775"
     },
     {
       "category": "Characters",
       "name": "Validation - missing campaign_id",
-      "passed": false,
+      "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:29.058542"
+      "timestamp": "2025-11-22T22:08:42.103427"
     },
     {
       "category": "Characters",
       "name": "Get character by ID",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:31.121941"
+      "timestamp": "2025-11-22T22:08:44.178351"
     },
     {
       "category": "Characters",
       "name": "Update character",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:33.179234"
+      "timestamp": "2025-11-22T22:08:46.233397"
     },
     {
       "category": "Characters",
       "name": "Apply damage",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:37.292499"
+      "timestamp": "2025-11-22T22:08:50.396265"
     },
     {
       "category": "Characters",
       "name": "Apply healing",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:39.345918"
+      "timestamp": "2025-11-22T22:08:52.474134"
     },
     {
       "category": "Characters",
       "name": "Healing cap at max HP",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:41.413725"
+      "timestamp": "2025-11-22T22:08:54.554284"
     },
     {
       "category": "Characters",
       "name": "Get campaign characters",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:43.438188"
+      "timestamp": "2025-11-22T22:08:56.646568"
     },
     {
       "category": "DM",
       "name": "Test endpoint",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:45.493651"
+      "timestamp": "2025-11-22T22:08:58.712172"
     },
     {
       "category": "DM",
       "name": "Generate narrative response",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:47.531653"
+      "timestamp": "2025-11-22T22:09:00.767100"
     },
     {
       "category": "DM",
       "name": "Generate NPC",
-      "passed": false,
+      "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:49.584232"
+      "timestamp": "2025-11-22T22:09:02.819627"
     },
     {
       "category": "DM",
       "name": "Get DM stats",
-      "passed": false,
+      "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:51.613119"
+      "timestamp": "2025-11-22T22:09:04.870722"
     },
     {
       "category": "Dice",
       "name": "Roll single die",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:53.644412"
+      "timestamp": "2025-11-22T22:09:06.908093"
     },
     {
       "category": "Dice",
       "name": "Roll with modifier",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:55.686991"
+      "timestamp": "2025-11-22T22:09:08.974010"
     },
     {
       "category": "Dice",
       "name": "Roll multiple dice",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:57.715795"
+      "timestamp": "2025-11-22T22:09:11.022109"
     },
     {
       "category": "Dice",
       "name": "Invalid notation handling",
-      "passed": false,
+      "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:13:59.760351"
+      "timestamp": "2025-11-22T22:09:13.081664"
     },
     {
       "category": "Security",
       "name": "SQL injection protection",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:14:03.886591"
+      "timestamp": "2025-11-22T22:09:17.222428"
     },
     {
       "category": "Security",
       "name": "XSS protection",
       "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:14:05.952107"
+      "timestamp": "2025-11-22T22:09:19.297578"
     },
     {
       "category": "Validation",
       "name": "Long string rejection",
-      "passed": false,
-      "message": "Accepted 10k char name",
-      "timestamp": "2025-11-21T23:14:07.995877"
+      "passed": true,
+      "message": "",
+      "timestamp": "2025-11-22T22:09:21.376043"
     },
     {
       "category": "Validation",
       "name": "Negative value rejection",
-      "passed": false,
+      "passed": true,
       "message": "",
-      "timestamp": "2025-11-21T23:14:10.054654"
+      "timestamp": "2025-11-22T22:09:23.457159"
     }
   ],
-  "bugs": [
-    {
-      "id": "BUG-007",
-      "severity": "Low",
-      "endpoint": "GET /api/users/{invalid-id}",
-      "expected": "404 or 422 error",
-      "actual": "Got: No response",
-      "steps": [
-        "1. GET /api/users/invalid-uuid"
-      ],
-      "error": "",
-      "impact": "Error handling inconsistent",
-      "suggested_fix": "",
-      "timestamp": "2025-11-21T23:13:10.594388"
-    },
-    {
-      "id": "BUG-010",
-      "severity": "Medium",
-      "endpoint": "POST /api/campaigns",
-      "expected": "422 Validation Error",
-      "actual": "Got: No response",
-      "steps": [
-        "1. POST /api/campaigns with only name field"
-      ],
-      "error": "",
-      "impact": "Validation not enforcing required fields",
-      "suggested_fix": "",
-      "timestamp": "2025-11-21T23:13:14.690980"
-    },
-    {
-      "id": "BUG-018",
-      "severity": "Medium",
-      "endpoint": "POST /api/campaigns",
-      "expected": "Name length validation",
-      "actual": "Accepted 10k character name",
-      "steps": [
-        "1. POST campaign with 10k char name"
-      ],
-      "error": "",
-      "impact": "Database bloat, DoS potential",
-      "suggested_fix": "Add max length validation to schemas",
-      "timestamp": "2025-11-21T23:14:07.995877"
-    }
-  ]
+  "bugs": []
 }

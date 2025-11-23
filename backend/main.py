@@ -33,11 +33,25 @@ app.add_middleware(
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """Handle validation errors with proper 422 responses"""
+    # Clean up errors to ensure JSON serializable
+    errors = []
+    for error in exc.errors():
+        error_dict = {
+            "type": error.get("type"),
+            "loc": error.get("loc"),
+            "msg": error.get("msg"),
+            "input": str(error.get("input", ""))[:200]  # Truncate long inputs
+        }
+        # Convert ctx error objects to strings
+        if "ctx" in error and "error" in error["ctx"]:
+            error_dict["ctx"] = {"error": str(error["ctx"]["error"])}
+        errors.append(error_dict)
+    
     return JSONResponse(
         status_code=422,
         content={
             "detail": "Validation error",
-            "errors": exc.errors()
+            "errors": errors
         }
     )
 

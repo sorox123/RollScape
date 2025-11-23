@@ -129,6 +129,7 @@ async def generate_npc(
         return {
             "npc_name": npc_name,
             "npc_role": npc_role,
+            "npc_details": description,  # Changed key to match test expectations
             "description": description,
             "mock_mode": settings.mock_mode
         }

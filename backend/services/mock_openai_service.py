@@ -261,6 +261,7 @@ class MockOpenAIService:
         """Get usage statistics"""
         return {
             "total_calls": self.call_count,
+            "total_requests": self.call_count,  # Alias for compatibility
             "conversation_length": len(self.conversation_history),
             "total_cost": 0.0,  # Always free!
             "mock_mode": True

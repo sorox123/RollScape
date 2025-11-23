@@ -68,18 +68,26 @@ class CampaignCreate(CampaignBase):
     ai_dm_enabled: bool = False
     ai_players_enabled: bool = False
     
-    @field_validator('name')
+    @field_validator('name', mode='before')
     @classmethod
     def validate_name_length(cls, v: str) -> str:
+        if not v or not isinstance(v, str):
+            raise ValueError('Name is required and must be a string')
         if len(v) > 200:
             raise ValueError(f'Name too long: {len(v)} characters (max 200)')
+        if len(v) < 1:
+            raise ValueError('Name cannot be empty')
         return v
     
-    @field_validator('description')
+    @field_validator('description', mode='before')
     @classmethod
     def validate_description_length(cls, v: str) -> str:
+        if not v or not isinstance(v, str):
+            raise ValueError('Description is required and must be a string')
         if len(v) > 5000:
             raise ValueError(f'Description too long: {len(v)} characters (max 5000)')
+        if len(v) < 1:
+            raise ValueError('Description cannot be empty')
         return v
 
 

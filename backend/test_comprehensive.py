@@ -49,19 +49,27 @@ def log_test(category: str, name: str, passed: bool, message: str = ""):
         print(f"     {message}")
 
 def safe_request(method: str, url: str, **kwargs):
-    """Make request and handle exceptions"""
+    """Make request and handle exceptions. Returns response even for HTTP errors (4xx, 5xx)"""
     try:
+        # Don't raise exceptions for HTTP errors - we want to test error responses
         if method == "GET":
-            return requests.get(url, **kwargs)
+            return requests.get(url, **kwargs, timeout=5)
         elif method == "POST":
-            return requests.post(url, **kwargs)
+            return requests.post(url, **kwargs, timeout=5)
         elif method == "PATCH":
-            return requests.patch(url, **kwargs)
+            return requests.patch(url, **kwargs, timeout=5)
         elif method == "PUT":
-            return requests.put(url, **kwargs)
+            return requests.put(url, **kwargs, timeout=5)
         elif method == "DELETE":
-            return requests.delete(url, **kwargs)
+            return requests.delete(url, **kwargs, timeout=5)
+    except requests.exceptions.Timeout:
+        print(f"      ⚠️  Request timeout for {method} {url}")
+        return None
+    except requests.exceptions.ConnectionError:
+        print(f"      ⚠️  Connection error for {method} {url}")
+        return None
     except Exception as e:
+        print(f"      ⚠️  Unexpected error: {str(e)}")
         return None
 
 # ============================================================================
@@ -74,7 +82,7 @@ def test_status_endpoints():
     
     # Test health check
     response = safe_request("GET", f"{BASE_URL}/api/status/health")
-    if response and response.status_code == 200:
+    if response is not None and response.status_code == 200:
         data = response.json()
         if data.get("status") == "healthy" and data.get("mock_mode") == True:
             log_test("Status", "Health check", True)
@@ -86,22 +94,22 @@ def test_status_endpoints():
     else:
         log_test("Status", "Health check", False, "Endpoint not responding")
         log_bug("BUG-002", "Critical", "GET /api/status/health",
-               "200 OK response", f"Got: {response.status_code if response else 'No response'}",
+               "200 OK response", f"Got: {response.status_code if response is not None else 'No response'}",
                ["1. GET /api/status/health"], impact="System monitoring broken")
     
     # Test mode endpoint
     response = safe_request("GET", f"{BASE_URL}/api/status/mode")
-    if response and response.status_code == 200:
+    if response is not None and response.status_code == 200:
         log_test("Status", "Mode check", True)
     else:
         log_test("Status", "Mode check", False)
         log_bug("BUG-003", "Low", "GET /api/status/mode",
-               "200 OK", f"Got: {response.status_code if response else 'No response'}",
+               "200 OK", f"Got: {response.status_code if response is not None else 'No response'}",
                ["1. GET /api/status/mode"], impact="Mode visibility")
     
     # Test costs endpoint
     response = safe_request("GET", f"{BASE_URL}/api/status/costs")
-    if response and response.status_code == 200:
+    if response is not None and response.status_code == 200:
         data = response.json()
         if data.get("total_cost") == 0.0 and data.get("mock_mode") == True:
             log_test("Status", "Costs tracking", True)
@@ -126,7 +134,7 @@ def test_user_endpoints():
     # Test get current user (should auto-create)
     response = safe_request("GET", f"{BASE_URL}/api/users/me")
     user_id = None
-    if response and response.status_code == 200:
+    if response is not None and response.status_code == 200:
         data = response.json()
         user_id = data.get("id")
         if data.get("username") == "testuser":
@@ -134,16 +142,16 @@ def test_user_endpoints():
         else:
             log_test("Users", "Get current user", False, f"Wrong user: {data.get('username')}")
     else:
-        log_test("Users", "Get current user", False, f"Status: {response.status_code if response else 'No response'}")
+        log_test("Users", "Get current user", False, f"Status: {response.status_code if response is not None else 'No response'}")
         log_bug("BUG-005", "Critical", "GET /api/users/me",
-               "200 OK with user data", f"Got: {response.status_code if response else 'No response'}",
+               "200 OK with user data", f"Got: {response.status_code if response is not None else 'No response'}",
                ["1. GET /api/users/me"], 
                impact="Authentication broken",
                fix="Check auth.py get_current_user() function")
     
     # Test get quota
     response = safe_request("GET", f"{BASE_URL}/api/users/me/quota")
-    if response and response.status_code == 200:
+    if response is not None and response.status_code == 200:
         data = response.json()
         if data.get("tier") == "free" and "limits" in data:
             log_test("Users", "Get quota", True)
@@ -152,13 +160,13 @@ def test_user_endpoints():
     else:
         log_test("Users", "Get quota", False)
         log_bug("BUG-006", "Medium", "GET /api/users/me/quota",
-               "200 OK with quota limits", f"Got: {response.status_code if response else 'No response'}",
+               "200 OK with quota limits", f"Got: {response.status_code if response is not None else 'No response'}",
                ["1. GET /api/users/me/quota"], impact="Quota enforcement broken")
     
     # Test update profile
     response = safe_request("PATCH", f"{BASE_URL}/api/users/me",
                           json={"display_name": "Updated Test User"})
-    if response and response.status_code == 200:
+    if response is not None and response.status_code == 200:
         data = response.json()
         if data.get("display_name") == "Updated Test User":
             log_test("Users", "Update profile", True)
@@ -170,19 +178,19 @@ def test_user_endpoints():
     # Test get user by ID
     if user_id:
         response = safe_request("GET", f"{BASE_URL}/api/users/{user_id}")
-        if response and response.status_code == 200:
+        if response is not None and response.status_code == 200:
             log_test("Users", "Get user by ID", True)
         else:
             log_test("Users", "Get user by ID", False)
     
     # Test invalid user ID (should 404)
     response = safe_request("GET", f"{BASE_URL}/api/users/invalid-uuid")
-    if response and response.status_code in [404, 422]:
+    if response is not None and response.status_code in [404, 422]:
         log_test("Users", "Invalid UUID handling", True)
     else:
-        log_test("Users", "Invalid UUID handling", False, f"Expected 404/422, got {response.status_code if response else 'No response'}")
+        log_test("Users", "Invalid UUID handling", False, f"Expected 404/422, got {response.status_code if response is not None else 'No response'}")
         log_bug("BUG-007", "Low", "GET /api/users/{invalid-id}",
-               "404 or 422 error", f"Got: {response.status_code if response else 'No response'}",
+               "404 or 422 error", f"Got: {response.status_code if response is not None else 'No response'}",
                ["1. GET /api/users/invalid-uuid"], 
                impact="Error handling inconsistent")
     
@@ -206,7 +214,7 @@ def test_campaign_endpoints(user_id: str):
                               "visibility": "private",
                               "status": "planning"
                           })
-    if response and response.status_code in [200, 201]:
+    if response is not None and response.status_code in [200, 201]:
         data = response.json()
         campaign_id = data.get("id")
         if data.get("dm_user_id") == user_id:
@@ -218,25 +226,25 @@ def test_campaign_endpoints(user_id: str):
                    ["1. POST /api/campaigns with valid data"],
                    impact="Wrong DM assigned to campaigns")
     else:
-        log_test("Campaigns", "Create campaign", False, f"Status: {response.status_code if response else 'No response'}")
+        log_test("Campaigns", "Create campaign", False, f"Status: {response.status_code if response is not None else 'No response'}")
         log_bug("BUG-009", "Critical", "POST /api/campaigns",
-               "201 Created", f"Got: {response.status_code if response else 'No response'}",
+               "201 Created", f"Got: {response.status_code if response is not None else 'No response'}",
                ["1. POST /api/campaigns"], impact="Cannot create campaigns")
     
     # Test create campaign - missing required fields
     response = safe_request("POST", f"{BASE_URL}/api/campaigns", json={"name": "Missing fields"})
-    if response and response.status_code == 422:
+    if response is not None and response.status_code == 422:
         log_test("Campaigns", "Validation - missing fields", True)
     else:
         log_test("Campaigns", "Validation - missing fields", False)
         log_bug("BUG-010", "Medium", "POST /api/campaigns",
-               "422 Validation Error", f"Got: {response.status_code if response else 'No response'}",
+               "422 Validation Error", f"Got: {response.status_code if response is not None else 'No response'}",
                ["1. POST /api/campaigns with only name field"],
                impact="Validation not enforcing required fields")
     
     # Test get my campaigns
     response = safe_request("GET", f"{BASE_URL}/api/campaigns/my-campaigns")
-    if response and response.status_code == 200:
+    if response is not None and response.status_code == 200:
         data = response.json()
         if isinstance(data, list) and len(data) > 0:
             log_test("Campaigns", "Get my campaigns", True)
@@ -248,7 +256,7 @@ def test_campaign_endpoints(user_id: str):
     # Test get campaign by ID
     if campaign_id:
         response = safe_request("GET", f"{BASE_URL}/api/campaigns/{campaign_id}")
-        if response and response.status_code == 200:
+        if response is not None and response.status_code == 200:
             log_test("Campaigns", "Get campaign by ID", True)
         else:
             log_test("Campaigns", "Get campaign by ID", False)
@@ -256,7 +264,7 @@ def test_campaign_endpoints(user_id: str):
         # Test update campaign
         response = safe_request("PATCH", f"{BASE_URL}/api/campaigns/{campaign_id}",
                               json={"name": "Updated Campaign Name"})
-        if response and response.status_code == 200:
+        if response is not None and response.status_code == 200:
             data = response.json()
             if data.get("name") == "Updated Campaign Name":
                 log_test("Campaigns", "Update campaign", True)
@@ -267,14 +275,14 @@ def test_campaign_endpoints(user_id: str):
     
     # Test list public campaigns
     response = safe_request("GET", f"{BASE_URL}/api/campaigns")
-    if response and response.status_code == 200:
+    if response is not None and response.status_code == 200:
         log_test("Campaigns", "List campaigns", True)
     else:
         log_test("Campaigns", "List campaigns", False)
     
     # Test invalid campaign ID
     response = safe_request("GET", f"{BASE_URL}/api/campaigns/invalid-uuid")
-    if response and response.status_code in [404, 422]:
+    if response is not None and response.status_code in [404, 422]:
         log_test("Campaigns", "Invalid campaign ID handling", True)
     else:
         log_test("Campaigns", "Invalid campaign ID handling", False)
@@ -308,12 +316,12 @@ def test_character_endpoints(campaign_id: str):
                               "armor_class": 16,
                               "character_type": "player"
                           })
-    if response and response.status_code in [200, 201]:
+    if response is not None and response.status_code in [200, 201]:
         data = response.json()
         character_id = data.get("id")
         log_test("Characters", "Create character", True)
     else:
-        log_test("Characters", "Create character", False, f"Status: {response.status_code if response else 'No response'}")
+        log_test("Characters", "Create character", False, f"Status: {response.status_code if response is not None else 'No response'}")
         if response:
             log_bug("BUG-011", "Critical", "POST /api/characters",
                    "201 Created", f"Got: {response.status_code}, Error: {response.text}",
@@ -323,7 +331,7 @@ def test_character_endpoints(campaign_id: str):
     # Test create character - missing required fields
     response = safe_request("POST", f"{BASE_URL}/api/characters",
                           json={"name": "No Campaign", "level": 1})
-    if response and response.status_code == 422:
+    if response is not None and response.status_code == 422:
         log_test("Characters", "Validation - missing campaign_id", True)
     else:
         log_test("Characters", "Validation - missing campaign_id", False)
@@ -331,7 +339,7 @@ def test_character_endpoints(campaign_id: str):
     # Test get character by ID
     if character_id:
         response = safe_request("GET", f"{BASE_URL}/api/characters/{character_id}")
-        if response and response.status_code == 200:
+        if response is not None and response.status_code == 200:
             log_test("Characters", "Get character by ID", True)
         else:
             log_test("Characters", "Get character by ID", False)
@@ -339,7 +347,7 @@ def test_character_endpoints(campaign_id: str):
         # Test update character
         response = safe_request("PATCH", f"{BASE_URL}/api/characters/{character_id}",
                               json={"level": 2, "experience_points": 300})
-        if response and response.status_code == 200:
+        if response is not None and response.status_code == 200:
             data = response.json()
             if data.get("level") == 2:
                 log_test("Characters", "Update character", True)
@@ -353,7 +361,7 @@ def test_character_endpoints(campaign_id: str):
                    json={"current_hp": 12})
         response = safe_request("POST", f"{BASE_URL}/api/characters/{character_id}/damage",
                               params={"damage": 5})
-        if response and response.status_code == 200:
+        if response is not None and response.status_code == 200:
             data = response.json()
             if data.get("current_hp") == 7:  # 12 - 5 = 7
                 log_test("Characters", "Apply damage", True)
@@ -370,7 +378,7 @@ def test_character_endpoints(campaign_id: str):
         # Test apply healing
         response = safe_request("POST", f"{BASE_URL}/api/characters/{character_id}/heal",
                               params={"healing": 3})
-        if response and response.status_code == 200:
+        if response is not None and response.status_code == 200:
             data = response.json()
             expected_hp = min(12, 7 + 3)  # Should be 10
             if data.get("current_hp") == expected_hp:
@@ -383,7 +391,7 @@ def test_character_endpoints(campaign_id: str):
         # Test healing beyond max HP
         response = safe_request("POST", f"{BASE_URL}/api/characters/{character_id}/heal",
                               params={"healing": 100})
-        if response and response.status_code == 200:
+        if response is not None and response.status_code == 200:
             data = response.json()
             if data.get("current_hp") <= data.get("max_hp"):
                 log_test("Characters", "Healing cap at max HP", True)
@@ -399,7 +407,7 @@ def test_character_endpoints(campaign_id: str):
     
     # Test get campaign characters
     response = safe_request("GET", f"{BASE_URL}/api/characters/campaign/{campaign_id}")
-    if response and response.status_code == 200:
+    if response is not None and response.status_code == 200:
         data = response.json()
         if isinstance(data, list):
             log_test("Characters", "Get campaign characters", True)
@@ -420,7 +428,7 @@ def test_dm_endpoints():
     
     # Test DM test endpoint
     response = safe_request("GET", f"{BASE_URL}/api/dm/test")
-    if response and response.status_code == 200:
+    if response is not None and response.status_code == 200:
         data = response.json()
         if "message" in data and data.get("mock_mode") == True:
             log_test("DM", "Test endpoint", True)
@@ -435,7 +443,7 @@ def test_dm_endpoints():
                               "player_input": "I enter the tavern",
                               "campaign_name": "Test Campaign"
                           })
-    if response and response.status_code == 200:
+    if response is not None and response.status_code == 200:
         data = response.json()
         if "narrative" in data and isinstance(data["narrative"], str):
             log_test("DM", "Generate narrative response", True)
@@ -452,7 +460,7 @@ def test_dm_endpoints():
     # Test generate NPC
     response = safe_request("POST", f"{BASE_URL}/api/dm/generate-npc",
                           params={"npc_name": "Barkeep", "npc_role": "innkeeper"})
-    if response and response.status_code == 200:
+    if response is not None and response.status_code == 200:
         data = response.json()
         if "npc_details" in data:
             log_test("DM", "Generate NPC", True)
@@ -463,7 +471,7 @@ def test_dm_endpoints():
     
     # Test DM stats
     response = safe_request("GET", f"{BASE_URL}/api/dm/stats")
-    if response and response.status_code == 200:
+    if response is not None and response.status_code == 200:
         data = response.json()
         if "total_requests" in data:
             log_test("DM", "Get DM stats", True)
@@ -483,7 +491,7 @@ def test_dice_endpoints():
     # Test single dice roll
     response = safe_request("POST", f"{BASE_URL}/api/dice/roll",
                           json={"notation": "1d20"})
-    if response and response.status_code == 200:
+    if response is not None and response.status_code == 200:
         data = response.json()
         if "total" in data and "notation" in data and 1 <= data["total"] <= 20:
             log_test("Dice", "Roll single die", True)
@@ -499,7 +507,7 @@ def test_dice_endpoints():
     # Test dice with modifier
     response = safe_request("POST", f"{BASE_URL}/api/dice/roll",
                           json={"notation": "1d20+5"})
-    if response and response.status_code == 200:
+    if response is not None and response.status_code == 200:
         data = response.json()
         if 6 <= data.get("total", 0) <= 25:
             log_test("Dice", "Roll with modifier", True)
@@ -511,7 +519,7 @@ def test_dice_endpoints():
     # Test multiple dice
     response = safe_request("POST", f"{BASE_URL}/api/dice/roll",
                           json={"notation": "3d6"})
-    if response and response.status_code == 200:
+    if response is not None and response.status_code == 200:
         data = response.json()
         if 3 <= data.get("total", 0) <= 18:
             log_test("Dice", "Roll multiple dice", True)
@@ -523,7 +531,7 @@ def test_dice_endpoints():
     # Test invalid notation
     response = safe_request("POST", f"{BASE_URL}/api/dice/roll",
                           json={"notation": "invalid"})
-    if response and response.status_code in [400, 422]:
+    if response is not None and response.status_code in [400, 422]:
         log_test("Dice", "Invalid notation handling", True)
     else:
         log_test("Dice", "Invalid notation handling", False)
@@ -544,7 +552,7 @@ def test_edge_cases():
                               "visibility": "private",
                               "status": "planning"
                           })
-    if response and response.status_code in [200, 201]:
+    if response is not None and response.status_code in [200, 201]:
         # If it succeeds, check if database still works
         response2 = safe_request("GET", f"{BASE_URL}/api/users/me")
         if response2 and response2.status_code == 200:
@@ -567,7 +575,7 @@ def test_edge_cases():
                               "visibility": "private",
                               "status": "planning"
                           })
-    if response and response.status_code in [200, 201]:
+    if response is not None and response.status_code in [200, 201]:
         data = response.json()
         if "<script>" in data.get("name", ""):
             log_test("Security", "XSS stored without sanitization", False)
@@ -587,7 +595,7 @@ def test_edge_cases():
                               "visibility": "private",
                               "status": "planning"
                           })
-    if response and response.status_code in [422, 400]:
+    if response is not None and response.status_code in [422, 400]:
         log_test("Validation", "Long string rejection", True)
     else:
         log_test("Validation", "Long string rejection", False, "Accepted 10k char name")
@@ -605,7 +613,7 @@ def test_edge_cases():
                               "level": -1,
                               "max_hp": -10
                           })
-    if response and response.status_code in [422, 400]:
+    if response is not None and response.status_code in [422, 400]:
         log_test("Validation", "Negative value rejection", True)
     else:
         log_test("Validation", "Negative value rejection", False)
@@ -763,3 +771,5 @@ if __name__ == "__main__":
         import traceback
         traceback.print_exc()
         exit(3)
+
+
