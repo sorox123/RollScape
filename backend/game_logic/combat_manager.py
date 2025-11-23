@@ -263,11 +263,12 @@ class Combat(BaseModel):
     
     def _check_combat_end(self) -> bool:
         """Check if combat should end"""
-        alive_players = [c for c in self.combatants if c.is_player and c.is_alive]
-        alive_npcs = [c for c in self.combatants if c.is_npc and c.is_alive]
+        # Count conscious (not unconscious and not dead) combatants
+        conscious_players = [c for c in self.combatants if c.is_player and not c.is_unconscious and c.is_alive]
+        conscious_npcs = [c for c in self.combatants if c.is_npc and not c.is_unconscious and c.is_alive]
         
         # End if all players or all NPCs are dead/unconscious
-        return len(alive_players) == 0 or len(alive_npcs) == 0
+        return len(conscious_players) == 0 or len(conscious_npcs) == 0
     
     def get_summary(self) -> Dict:
         """Get combat summary"""
