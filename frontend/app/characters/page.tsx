@@ -5,11 +5,17 @@ import { useRouter } from 'next/navigation'
 import { Plus, User, Heart, Shield, Trash2 } from 'lucide-react'
 import { apiCharacters } from '@/lib/api'
 import { Character } from '@/lib/types/character'
+import { useToast } from '@/components/ui/ToastContainer'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { CharacterCardSkeleton } from '@/components/ui/LoadingSkeleton'
 
 export default function CharactersPage() {
   const router = useRouter()
+  const toast = useToast()
+  const confirm = useConfirm()
   const [characters, setCharacters] = useState<Character[]>([])
   const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -25,7 +31,9 @@ export default function CharactersPage() {
       setCharacters(response.data || [])
       setError(null)
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load characters')
+      const errorMsg = err.response?.data?.detail || 'Failed to load characters'
+      setError(errorMsg)
+      toast.error('Error', errorMsg)
       // For demo, use empty array
       setCharacters([])
     } finally {
@@ -33,26 +41,32 @@ export default function CharactersPage() {
     }
   }
 
-  async function handleDelete(characterId: string) {
-    if (!confirm('Are you sure you want to delete this character?')) return
+  async function handleDelete(characterId: string, characterName: string) {
+    const confirmed = await confirm.confirm({
+      title: 'Delete Character',
+      message: `Are you sure you want to delete ${characterName}? This action cannot be undone.`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    })
+    
+    if (!confirmed) return
     
     try {
-      await apiCharacters.delete(characterId)
-      setCharacters(characters.filter(c => c.id !== characterId))
+      setDeleting(characterId)
+      const response = await apiCharacters.delete(characterId)
+      
+      if (response.error) {
+        toast.error('Delete Failed', response.error.error)
+      } else {
+        setCharacters(characters.filter(c => c.id !== characterId))
+        toast.success('Character Deleted', `${characterName} has been removed`)
+      }
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to delete character')
+      toast.error('Delete Failed', err.response?.data?.detail || 'Failed to delete character')
+    } finally {
+      setDeleting(null)
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-red-500 border-t-transparent mx-auto mb-4" />
-          <p className="text-gray-400">Loading characters...</p>
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -81,16 +95,22 @@ export default function CharactersPage() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {error && (
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <CharacterCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : error && characters.length === 0 ? (
           <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4 mb-6">
             <p className="text-yellow-400">{error}</p>
             <p className="text-sm text-gray-400 mt-1">
               Demo mode: Create a character to get started
             </p>
           </div>
-        )}
+        ) : null}
 
-        {characters.length === 0 ? (
+        {!loading && characters.length === 0 ? (
           <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
             <User className="w-16 h-16 mx-auto mb-4 text-gray-600" />
             <h2 className="text-2xl font-bold mb-2">No characters yet</h2>
@@ -105,18 +125,19 @@ export default function CharactersPage() {
               Create Character
             </button>
           </div>
-        ) : (
+        ) : !loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {characters.map((character) => (
               <CharacterCard
                 key={character.id}
                 character={character}
+                deleting={deleting === character.id}
                 onView={() => router.push(`/characters/${character.id}`)}
-                onDelete={() => handleDelete(character.id)}
+                onDelete={() => handleDelete(character.id, character.name)}
               />
             ))}
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   )
@@ -124,11 +145,12 @@ export default function CharactersPage() {
 
 interface CharacterCardProps {
   character: Character
+  deleting: boolean
   onView: () => void
   onDelete: () => void
 }
 
-function CharacterCard({ character, onView, onDelete }: CharacterCardProps) {
+function CharacterCard({ character, deleting, onView, onDelete }: CharacterCardProps) {
   const hpPercent = (character.current_hp / character.max_hp) * 100
   const isBloodied = character.current_hp <= character.max_hp / 2
   const isDying = character.current_hp <= 0
@@ -166,9 +188,14 @@ function CharacterCard({ character, onView, onDelete }: CharacterCardProps) {
             e.stopPropagation()
             onDelete()
           }}
-          className="absolute top-2 right-2 p-2 bg-red-600 hover:bg-red-700 rounded-lg opacity-0 group-hover:opacity-100 transition"
+          disabled={deleting}
+          className="absolute top-2 right-2 p-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg opacity-0 group-hover:opacity-100 transition"
         >
-          <Trash2 className="w-4 h-4" />
+          {deleting ? (
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+          ) : (
+            <Trash2 className="w-4 h-4" />
+          )}
         </button>
       </div>
 

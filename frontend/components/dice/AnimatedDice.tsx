@@ -30,18 +30,25 @@ export default function AnimatedDice({ rolling, result }: AnimatedDiceProps) {
   return (
     <div className="flex flex-col items-center justify-center py-8">
       {/* Animated Die */}
-      <div className={`mb-8 ${rolling ? 'animate-roll' : ''}`}>
+      <div className={`mb-8 transition-all duration-300 ${rolling ? 'scale-110' : 'scale-100'}`}>
         <div className="relative">
-          <div className="w-32 h-32 bg-gradient-to-br from-red-500 to-red-700 rounded-2xl shadow-2xl flex items-center justify-center border-4 border-red-300 transform hover:scale-110 transition-transform">
+          <div className={`w-32 h-32 bg-gradient-to-br from-red-500 to-red-700 rounded-2xl shadow-2xl flex items-center justify-center border-4 border-red-300 transition-all ${
+            rolling ? 'animate-roll shadow-red-500/50' : 'hover:scale-110 shadow-red-900/50'
+          }`}>
             {!rolling && result && (
-              <span className="text-6xl font-bold text-white">
+              <span className="text-6xl font-bold text-white animate-fade-in">
                 {result.rolls.length === 1 ? result.rolls[0] : '?'}
               </span>
             )}
             {rolling && (
-              <Dices className="w-16 h-16 text-white animate-spin" />
+              <Dices className="w-16 h-16 text-white animate-bounce" />
             )}
           </div>
+          
+          {/* Glow effect when rolling */}
+          {rolling && (
+            <div className="absolute inset-0 bg-red-500 rounded-2xl blur-xl opacity-50 animate-pulse" />
+          )}
         </div>
       </div>
 

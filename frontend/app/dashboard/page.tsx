@@ -4,8 +4,12 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Sword, Users, MessageCircle, Dice6, Settings, LogOut } from 'lucide-react'
 import { apiStatus } from '@/lib/api'
+import { useToast } from '@/components/ui/ToastContainer'
+import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import { DashboardCardSkeleton } from '@/components/ui/LoadingSkeleton'
 
 export default function Dashboard() {
+  const toast = useToast()
   const [serviceStatus, setServiceStatus] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
@@ -16,9 +20,16 @@ export default function Dashboard() {
   const loadServiceStatus = async () => {
     try {
       const response = await apiStatus.getServices()
-      setServiceStatus(response.data || { database: false, redis: false, openai: false, supabase: false })
+      
+      if (response.error) {
+        toast.warning('Service Status Unavailable', 'Could not fetch service status')
+        setServiceStatus({ database: false, redis: false, openai: false, supabase: false })
+      } else {
+        setServiceStatus(response.data || { database: false, redis: false, openai: false, supabase: false })
+      }
     } catch (error) {
       console.error('Failed to load service status:', error)
+      toast.error('Connection Error', 'Unable to connect to backend')
     } finally {
       setLoading(false)
     }
@@ -64,7 +75,16 @@ export default function Dashboard() {
         </div>
 
         {/* Service Status */}
-        {!loading && serviceStatus && (
+        {loading ? (
+          <div className="bg-slate-800 rounded-lg p-6 mb-8 border border-slate-700">
+            <h2 className="text-xl font-bold text-white mb-4">System Status</h2>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-20 bg-slate-700 rounded-lg animate-pulse" />
+              ))}
+            </div>
+          </div>
+        ) : serviceStatus ? (
           <div className="bg-slate-800 rounded-lg p-6 mb-8 border border-slate-700">
             <h2 className="text-xl font-bold text-white mb-4">System Status</h2>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -90,10 +110,17 @@ export default function Dashboard() {
               />
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Quick Actions Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        {loading ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <DashboardCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <QuickActionCard
             icon={<Sword className="w-8 h-8" />}
             title="Start New Campaign"
@@ -136,7 +163,8 @@ export default function Dashboard() {
             href="/characters"
             color="orange"
           />
-        </div>
+          </div>
+        )}
 
         {/* Recent Activity (Placeholder) */}
         <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">

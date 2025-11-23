@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Dices, Plus, Minus, ArrowLeft, History, Sparkles } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { apiDice } from '@/lib/api'
+import { useToast } from '@/components/ui/ToastContainer'
 import AnimatedDice from '@/components/dice/AnimatedDice'
 import RollHistory from '@/components/dice/RollHistory'
 
@@ -20,6 +21,7 @@ interface RollResult {
 
 export default function DiceRollerPage() {
   const router = useRouter()
+  const toast = useToast()
   const [notation, setNotation] = useState('1d20')
   const [modifier, setModifier] = useState(0)
   const [rolling, setRolling] = useState(false)
@@ -33,6 +35,12 @@ export default function DiceRollerPage() {
     try {
       setRolling(true)
       const response = await apiDice.roll(rollNotation)
+      
+      if (response.error) {
+        toast.error('Invalid Roll', response.error.error || 'Invalid dice notation')
+        setRolling(false)
+        return
+      }
       
       if (!response.data) {
         throw new Error('No response data')
@@ -53,10 +61,19 @@ export default function DiceRollerPage() {
       setCurrentResult(result)
       setHistory([result, ...history].slice(0, 20)) // Keep last 20 rolls
       
+      // Special toasts for natural 20s and 1s
+      if (rollNotation.includes('d20') && rollValues.length === 1) {
+        if (rollValues[0] === 20) {
+          toast.success('Natural 20!', 'Critical success!')
+        } else if (rollValues[0] === 1) {
+          toast.error('Natural 1!', 'Critical failure!')
+        }
+      }
+      
       // Reset rolling animation after a delay
-      setTimeout(() => setRolling(false), 1000)
+      setTimeout(() => setRolling(false), 1200)
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to roll dice')
+      toast.error('Roll Failed', err.response?.data?.detail || 'Failed to roll dice')
       setRolling(false)
     }
   }
