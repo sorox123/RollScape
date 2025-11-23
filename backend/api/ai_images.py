@@ -26,7 +26,7 @@ def get_dalle_service():
 # Request Models
 class GenerateImageRequest(BaseModel):
     prompt: str = Field(..., description="Image generation prompt")
-    image_type: ImageType = Field(..., description="Type of image to generate")
+    image_type: str = Field(..., description="Type of image to generate")
     size: str = Field("1024x1024", description="Image size")
     quality: str = Field("standard", description="Image quality (standard, hd)")
     style: str = Field("vivid", description="Image style (vivid, natural)")

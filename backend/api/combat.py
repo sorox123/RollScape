@@ -9,7 +9,7 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 import uuid
 
-from ..game_logic.combat_manager import (
+from game_logic.combat_manager import (
     combat_manager,
     Combatant,
     Combat,
