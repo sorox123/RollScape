@@ -12,10 +12,11 @@ import enum
 
 
 class SubscriptionTier(str, enum.Enum):
-    """Subscription tier enumeration"""
+    """Subscription tier enumeration - Aligned with Stripe payment tiers"""
     FREE = "free"
-    CREATOR = "creator"
-    MASTER = "master"
+    BASIC = "basic"
+    PREMIUM = "premium"
+    ULTIMATE = "ultimate"
 
 
 class SubscriptionStatus(str, enum.Enum):
@@ -55,8 +56,10 @@ class User(Base):
         default=SubscriptionStatus.ACTIVE
     )
     stripe_customer_id = Column(String(100), unique=True)
+    stripe_subscription_id = Column(String(100))  # Track active Stripe subscription
     subscription_started_at = Column(DateTime(timezone=True))
     subscription_ends_at = Column(DateTime(timezone=True))
+    current_period_end = Column(DateTime(timezone=True))  # Current billing period end
     
     # Usage tracking (monthly quotas)
     monthly_ai_images_used = Column(Integer, default=0)
@@ -80,20 +83,25 @@ class User(Base):
         return self.subscription_tier == SubscriptionTier.FREE
     
     @property
-    def is_creator_tier(self) -> bool:
-        return self.subscription_tier == SubscriptionTier.CREATOR
+    def is_basic_tier(self) -> bool:
+        return self.subscription_tier == SubscriptionTier.BASIC
     
     @property
-    def is_master_tier(self) -> bool:
-        return self.subscription_tier == SubscriptionTier.MASTER
+    def is_premium_tier(self) -> bool:
+        return self.subscription_tier == SubscriptionTier.PREMIUM
+    
+    @property
+    def is_ultimate_tier(self) -> bool:
+        return self.subscription_tier == SubscriptionTier.ULTIMATE
     
     @property
     def ai_image_quota(self) -> int:
         """Monthly AI image generation quota"""
         quotas = {
-            SubscriptionTier.FREE: 10,
-            SubscriptionTier.CREATOR: 50,
-            SubscriptionTier.MASTER: 999999  # Unlimited
+            SubscriptionTier.FREE: 0,
+            SubscriptionTier.BASIC: 25,
+            SubscriptionTier.PREMIUM: 100,
+            SubscriptionTier.ULTIMATE: 500
         }
         return quotas.get(self.subscription_tier, 0)
     
@@ -102,8 +110,20 @@ class User(Base):
         """AI player limit per campaign"""
         quotas = {
             SubscriptionTier.FREE: 2,
-            SubscriptionTier.CREATOR: 5,
-            SubscriptionTier.MASTER: 999999  # Unlimited
+            SubscriptionTier.BASIC: 4,
+            SubscriptionTier.PREMIUM: 6,
+            SubscriptionTier.ULTIMATE: 10
+        }
+        return quotas.get(self.subscription_tier, 0)
+    
+    @property
+    def campaign_quota(self) -> int:
+        """Active campaign limit"""
+        quotas = {
+            SubscriptionTier.FREE: 1,
+            SubscriptionTier.BASIC: 3,
+            SubscriptionTier.PREMIUM: 10,
+            SubscriptionTier.ULTIMATE: 999  # Unlimited
         }
         return quotas.get(self.subscription_tier, 0)
     
@@ -112,7 +132,8 @@ class User(Base):
         """PDF rulebook import limit"""
         quotas = {
             SubscriptionTier.FREE: 0,
-            SubscriptionTier.CREATOR: 3,
-            SubscriptionTier.MASTER: 999999  # Unlimited
+            SubscriptionTier.BASIC: 3,
+            SubscriptionTier.PREMIUM: 10,
+            SubscriptionTier.ULTIMATE: 999  # Unlimited
         }
         return quotas.get(self.subscription_tier, 0)

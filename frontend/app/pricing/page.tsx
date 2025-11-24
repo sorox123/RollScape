@@ -56,14 +56,22 @@ export default function PricingPage() {
     if (tierName === 'free') return
 
     try {
-      const response = await axios.post(`${API_BASE}/api/subscription/upgrade`, {
-        target_tier: tierName,
-        billing_cycle: billingCycle
+      // Create Stripe checkout session
+      const response = await axios.post(`${API_BASE}/api/payments/create-checkout`, {
+        user_id: 'user-123', // TODO: Get from auth context
+        email: 'test@example.com', // TODO: Get from auth context
+        tier: tierName,
+        billing_period: billingCycle,
+        success_url: `${window.location.origin}/pricing?success=true`,
+        cancel_url: `${window.location.origin}/pricing?canceled=true`
       })
       
-      alert('Upgrade initiated! (Payment integration coming soon)')
+      // Redirect to Stripe Checkout
+      if (response.data.checkout_url) {
+        window.location.href = response.data.checkout_url
+      }
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to upgrade')
+      alert(err.response?.data?.detail || 'Failed to start checkout')
     }
   }
 

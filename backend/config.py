@@ -36,6 +36,17 @@ class Settings(BaseSettings):
     supabase_key: str | None = None
     supabase_enabled: bool = True
     
+    # Stripe Payment (optional for now)
+    stripe_api_key: str | None = None
+    stripe_publishable_key: str | None = None
+    stripe_webhook_secret: str | None = None
+    stripe_price_basic_monthly: str | None = None
+    stripe_price_basic_yearly: str | None = None
+    stripe_price_premium_monthly: str | None = None
+    stripe_price_premium_yearly: str | None = None
+    stripe_price_ultimate_monthly: str | None = None
+    stripe_price_ultimate_yearly: str | None = None
+    
     # Service Toggles
     redis_enabled: bool = True
     websocket_enabled: bool = True

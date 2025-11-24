@@ -11,7 +11,7 @@ from fastapi.exceptions import RequestValidationError
 from config import settings
 
 # Import routers
-from api import users, campaigns, characters, dice, dm, player_agent, game_session, status, friends, messaging, ai_images, pdf_import, combat, inventory, spells, abilities
+from api import users, campaigns, characters, dice, dm, player_agent, game_session, status, friends, messaging, ai_images, pdf_import, combat, inventory, spells, abilities, payments
 
 app = FastAPI(
     title="RollScape API",
@@ -72,6 +72,7 @@ app.include_router(combat.router)
 app.include_router(inventory.router)
 app.include_router(spells.router)
 app.include_router(abilities.router)
+app.include_router(payments.router)
 
 # Load SRD spells on startup
 @app.on_event("startup")
