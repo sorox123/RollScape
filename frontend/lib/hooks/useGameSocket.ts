@@ -6,7 +6,6 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { io, Socket } from 'socket.io-client';
 
 export enum EventType {
   // Connection events
@@ -178,7 +177,7 @@ export function useGameSocket(options: UseGameSocketOptions): UseGameSocketRetur
     }
 
     // Construct WebSocket URL
-    const wsUrl = `ws://localhost:8000/ws/game/${sessionId}?token=${userId}${
+    const wsUrl = `ws://localhost:8080/ws/game/${sessionId}?token=${userId}${
       characterId ? `&character_id=${characterId}` : ''
     }`;
 

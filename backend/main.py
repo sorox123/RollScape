@@ -23,7 +23,7 @@ app = FastAPI(
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
+    allow_origins=["*"],  # Temporarily allow all origins for WebSocket testing
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -74,6 +74,7 @@ app.include_router(spells.router)
 app.include_router(abilities.router)
 app.include_router(payments.router)
 app.include_router(websocket.router)
+print(f"✅ Registered WebSocket router at /ws")
 
 # Load SRD spells on startup
 @app.on_event("startup")

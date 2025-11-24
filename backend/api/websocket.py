@@ -21,6 +21,15 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ws", tags=["websocket"])
 
+# Debug: Confirm module is loaded
+print("🔌 WebSocket module loaded - router prefix: /ws")
+
+# Test endpoint to verify routing works
+@router.get("/test")
+async def test_websocket_routing():
+    """Test endpoint to verify WebSocket router is working"""
+    return {"message": "WebSocket router is registered!", "endpoint": "/ws/game/{session_id}"}
+
 
 async def get_user_from_token(token: str, db: Session) -> Optional[User]:
     """
@@ -82,6 +91,10 @@ async def websocket_game_endpoint(
     - pong: Response to ping
     """
     logger.info(f"🔌 WebSocket connection attempt: session_id={session_id}, token={token}")
+    
+    # Accept the WebSocket connection first
+    await websocket.accept()
+    logger.info("✅ WebSocket accepted")
     
     # Authenticate user
     user = await get_user_from_token(token, db)
