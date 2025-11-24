@@ -199,17 +199,22 @@ export function useGameSocket(options: UseGameSocketOptions): UseGameSocketRetur
       setPlayers([]);
       onDisconnected?.();
 
-      // Auto-reconnect after 3 seconds
-      if (autoConnect) {
+      // Auto-reconnect after 5 seconds (increased to reduce spam)
+      if (autoConnect && event.code !== 1000) { // Don't reconnect if intentional close
         reconnectTimeoutRef.current = setTimeout(() => {
           console.log('🔄 Attempting to reconnect...');
           connect();
-        }, 3000);
+        }, 5000);
       }
     };
 
     ws.onerror = (error) => {
       console.error('❌ WebSocket error:', error);
+      console.error('❌ Error details:', {
+        type: error.type,
+        target: error.target,
+        currentTarget: error.currentTarget
+      });
       onError?.({ message: 'Connection error' });
     };
 

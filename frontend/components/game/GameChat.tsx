@@ -35,16 +35,20 @@ export function GameChat({ sessionId, userId, characterId, isDM = false }: GameC
     sendChatMessage,
     sendDMNarration,
     sendDiceRoll,
+    reconnect,
   } = useGameSocket({
     sessionId,
     userId,
     characterId,
     autoConnect: true,
     onConnected: () => {
-      addSystemMessage('Connected to game session');
+      addSystemMessage('✅ Connected to game session');
     },
     onDisconnected: () => {
-      addSystemMessage('Disconnected from game session');
+      addSystemMessage('⚠️ Connection lost');
+    },
+    onError: (error) => {
+      console.error('WebSocket error:', error);
     },
     onRoomJoined: (data) => {
       addSystemMessage(`Joined game with ${data.players.length} players`);
@@ -67,13 +71,20 @@ export function GameChat({ sessionId, userId, characterId, isDM = false }: GameC
   });
 
   const addSystemMessage = (message: string) => {
-    setMessages((prev) => [
-      ...prev,
-      {
-        type: 'system',
-        data: { message, timestamp: new Date().toISOString() },
-      },
-    ]);
+    // Don't spam disconnection messages
+    setMessages((prev) => {
+      const lastMessage = prev[prev.length - 1];
+      if (lastMessage?.type === 'system' && lastMessage.data.message === message) {
+        return prev; // Skip duplicate system messages
+      }
+      return [
+        ...prev,
+        {
+          type: 'system',
+          data: { message, timestamp: new Date().toISOString() },
+        },
+      ];
+    });
   };
 
   const scrollToBottom = () => {
