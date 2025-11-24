@@ -9,6 +9,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from services.stripe_service import stripe_service
+from services.email_service import email_service
 from database import get_db
 from models.user import User, SubscriptionTier, SubscriptionStatus
 
@@ -315,6 +316,19 @@ async def stripe_webhook(
                 
                 db.commit()
                 print(f"   ✓ User {user.email} upgraded to {user.subscription_tier}")
+                
+                # Send payment success email
+                if subscription_id:
+                    billing_period = "yearly" if "yearly" in price_id else "monthly"
+                    amount = sub["items"]["data"][0]["price"]["unit_amount"] / 100
+                    email_service.send_payment_success(
+                        to_email=user.email,
+                        user_name=user.display_name or user.username,
+                        tier=user.subscription_tier.value,
+                        amount=amount,
+                        billing_period=billing_period,
+                        next_billing_date=user.current_period_end
+                    )
         
         elif event_type == "customer.subscription.created":
             subscription = data
@@ -370,11 +384,19 @@ async def stripe_webhook(
             # Downgrade user to free tier
             user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
             if user:
+                old_tier = user.subscription_tier.value
                 user.subscription_tier = SubscriptionTier.FREE
                 user.subscription_status = SubscriptionStatus.CANCELED
                 user.stripe_subscription_id = None
                 db.commit()
                 print(f"   ✓ User {user.email} downgraded to FREE")
+                
+                # Send subscription canceled email
+                email_service.send_subscription_canceled(
+                    to_email=user.email,
+                    user_name=user.display_name or user.username,
+                    tier=old_tier
+                )
         
         elif event_type == "invoice.paid":
             invoice = data
@@ -402,7 +424,17 @@ async def stripe_webhook(
                 user.subscription_status = SubscriptionStatus.PAST_DUE
                 db.commit()
                 print(f"   ✓ User {user.email} marked as PAST_DUE")
-                # TODO: Send notification email to user
+                
+                # Send payment failed email
+                amount = invoice["amount_due"] / 100
+                retry_date = datetime.fromtimestamp(invoice["next_payment_attempt"]) if invoice.get("next_payment_attempt") else datetime.now()
+                email_service.send_payment_failed(
+                    to_email=user.email,
+                    user_name=user.display_name or user.username,
+                    tier=user.subscription_tier.value,
+                    amount=amount,
+                    retry_date=retry_date
+                )
         
         else:
             print(f"⚠️ Unhandled event type: {event_type}")
