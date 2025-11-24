@@ -121,6 +121,8 @@ class SpellbookEntry(BaseModel):
     character_id: str
     prepared: bool = False
     always_prepared: bool = False  # Domain spells, etc.
+    source: str = "class"  # class, item, feat, racial, multiclass
+    item_id: Optional[str] = None  # If granted by magic item
     notes: Optional[str] = None
 
 
@@ -324,12 +326,20 @@ async def get_campaign_spells(campaign_id: str):
 # ============================================================================
 
 @router.post("/characters/{character_id}/spellbook", response_model=SpellbookEntry)
-async def add_spell_to_spellbook(character_id: str, spell_id: str, prepared: bool = False):
+async def add_spell_to_spellbook(
+    character_id: str, 
+    spell_id: str, 
+    prepared: bool = False,
+    source: str = "class",
+    item_id: Optional[str] = None
+):
     """
     Add spell to character's spellbook
     
     - Wizards add to spellbook, prepare subset
     - Sorcerers know spells (always prepared)
+    - Supports spells from items, feats, racial abilities
+    - Martial classes can have spells from magic items (e.g., Fighter with Wand of Fireballs)
     """
     if spell_id not in spells:
         raise HTTPException(status_code=404, detail="Spell not found")
@@ -337,14 +347,22 @@ async def add_spell_to_spellbook(character_id: str, spell_id: str, prepared: boo
     if character_id not in spellbooks:
         spellbooks[character_id] = []
     
-    # Check if already in spellbook
-    if any(entry.spell_id == spell_id for entry in spellbooks[character_id]):
-        raise HTTPException(status_code=400, detail="Spell already in spellbook")
+    # Check if already in spellbook from same source
+    existing = next(
+        (entry for entry in spellbooks[character_id] 
+         if entry.spell_id == spell_id and entry.source == source and entry.item_id == item_id),
+        None
+    )
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="Spell already in spellbook from this source")
     
     entry = SpellbookEntry(
         spell_id=spell_id,
         character_id=character_id,
-        prepared=prepared
+        prepared=prepared,
+        source=source,
+        item_id=item_id
     )
     
     spellbooks[character_id].append(entry)
