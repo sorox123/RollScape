@@ -63,6 +63,13 @@ class GameSession(Base):
     items_found = Column(FlexJSON, default=[])
     quests_updated = Column(FlexJSON, default=[])
     
+    # Session Recap (AI-generated narrative)
+    recap_text = Column(Text)
+    recap_generated_at = Column(DateTime(timezone=True))
+    locations_visited = Column(FlexJSON, default=[])
+    decisions_made = Column(FlexJSON, default=[])
+    combat_encounters = Column(FlexJSON, default=[])
+    
     # Relationships
     logs = relationship("SessionLog", back_populates="session", cascade="all, delete-orphan")
     

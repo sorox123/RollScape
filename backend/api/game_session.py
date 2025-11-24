@@ -9,6 +9,7 @@ from datetime import datetime
 
 from game_logic.session_manager import session_manager, GamePhase
 from game_logic.combat_manager import Combatant
+from services.openai_service import openai_service
 
 router = APIRouter(prefix="/api/session", tags=["game-session"])
 
@@ -286,3 +287,141 @@ async def end_combat(session_id: str):
         return {"message": "Combat ended"}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+# ============================================================================
+# SESSION RECAP ENDPOINTS
+# ============================================================================
+
+@router.post("/{session_id}/recap/generate", response_model=dict)
+async def generate_session_recap(session_id: str):
+    """
+    Generate AI-powered session recap.
+    
+    Creates a narrative summary of the session including:
+    - Engaging story recap (2-3 paragraphs)
+    - Key events list
+    - NPCs encountered
+    - Locations visited
+    - Important decisions made
+    - Combat encounter summaries
+    """
+    session = session_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    try:
+        # Gather session data
+        session_data = {
+            "title": session.session_title or f"Session {session.session_number}",
+            "session_number": session.session_number,
+            "duration_minutes": session.duration_minutes or 0,
+            "messages": [
+                {
+                    "sender_name": msg.sender_name,
+                    "message": msg.message,
+                    "timestamp": msg.timestamp.isoformat()
+                }
+                for msg in session.get_recent_chat(100)
+            ],
+            "actions": [
+                {
+                    "character_name": action.character_name,
+                    "action_type": action.action_type,
+                    "description": action.description,
+                    "result": action.result
+                }
+                for action in session.get_recent_actions(50)
+            ],
+            "combat_logs": [
+                {
+                    "description": combat.description or "Combat",
+                    "participants": [c.name for c in combat.combatants]
+                }
+                for combat in session.combat_encounters
+            ] if hasattr(session, 'combat_encounters') else []
+        }
+        
+        # Generate recap using OpenAI
+        recap_data = await openai_service.generate_session_recap(session_data)
+        
+        # Store recap in session (in production, this would update the database)
+        if not hasattr(session, 'recap_data'):
+            session.recap_data = {}
+        
+        session.recap_data = {
+            **recap_data,
+            "generated_at": datetime.utcnow().isoformat(),
+            "session_id": session_id
+        }
+        
+        return {
+            "message": "Recap generated successfully",
+            "recap": session.recap_data
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating recap: {str(e)}")
+
+
+@router.get("/{session_id}/recap", response_model=dict)
+async def get_session_recap(session_id: str):
+    """
+    Get session recap if it exists.
+    """
+    session = session_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    if not hasattr(session, 'recap_data') or not session.recap_data:
+        raise HTTPException(status_code=404, detail="No recap available. Generate one first.")
+    
+    return session.recap_data
+
+
+class UpdateRecapRequest(BaseModel):
+    """Request to update recap"""
+    recap_text: Optional[str] = None
+    key_events: Optional[List[str]] = None
+    npcs_met: Optional[List[str]] = None
+    locations_visited: Optional[List[str]] = None
+    decisions_made: Optional[List[str]] = None
+    combat_encounters: Optional[List[str]] = None
+
+
+@router.patch("/{session_id}/recap", response_model=dict)
+async def update_session_recap(session_id: str, request: UpdateRecapRequest):
+    """
+    Update/edit session recap manually.
+    """
+    session = session_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    if not hasattr(session, 'recap_data') or not session.recap_data:
+        raise HTTPException(status_code=404, detail="No recap to update. Generate one first.")
+    
+    # Update fields that were provided
+    update_data = request.model_dump(exclude_unset=True)
+    session.recap_data.update(update_data)
+    session.recap_data["updated_at"] = datetime.utcnow().isoformat()
+    
+    return {
+        "message": "Recap updated successfully",
+        "recap": session.recap_data
+    }
+
+
+@router.delete("/{session_id}/recap", response_model=dict)
+async def delete_session_recap(session_id: str):
+    """
+    Delete session recap.
+    """
+    session = session_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    if hasattr(session, 'recap_data'):
+        session.recap_data = None
+    
+    return {"message": "Recap deleted successfully"}

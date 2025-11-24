@@ -215,5 +215,113 @@ class OpenAIService:
         return stats
 
 
+    async def generate_session_recap(self, session_data: Dict) -> Dict:
+        """
+        Generate a narrative recap of a game session.
+        
+        Args:
+            session_data: Dict containing session info (messages, actions, combat_logs)
+        
+        Returns:
+            Dict with recap_text, key_events, npcs_met, locations_visited, decisions_made
+        """
+        # Build prompt from session data
+        messages_summary = "\n".join([
+            f"{msg.get('sender_name', 'Unknown')}: {msg.get('message', '')}"
+            for msg in session_data.get('messages', [])[:50]  # Last 50 messages
+        ])
+        
+        actions_summary = "\n".join([
+            f"{action.get('character_name', 'Character')} - {action.get('action_type', 'action')}: {action.get('description', '')}"
+            for action in session_data.get('actions', [])[:30]  # Last 30 actions
+        ])
+        
+        combat_summary = "\n".join([
+            f"Combat: {combat.get('description', 'Battle')} - {len(combat.get('participants', []))} participants"
+            for combat in session_data.get('combat_logs', [])[:5]  # Last 5 combats
+        ])
+        
+        prompt = f"""
+You are a skilled Dungeon Master creating a session recap for a D&D game.
+
+Session Title: {session_data.get('title', 'Untitled Session')}
+Session Number: {session_data.get('session_number', 'N/A')}
+Duration: {session_data.get('duration_minutes', 0)} minutes
+
+Chat Messages:
+{messages_summary}
+
+Player Actions:
+{actions_summary}
+
+Combat Encounters:
+{combat_summary}
+
+Based on this session data, create a comprehensive recap in the following JSON format:
+{{
+  "recap_text": "A narrative summary (2-3 paragraphs) of the session written in an engaging storytelling style",
+  "key_events": ["Event 1", "Event 2", "Event 3"],
+  "npcs_met": ["NPC name 1", "NPC name 2"],
+  "locations_visited": ["Location 1", "Location 2"],
+  "decisions_made": ["Decision 1", "Decision 2"],
+  "combat_encounters": ["Brief combat description 1", "Brief combat description 2"]
+}}
+
+Make the recap_text engaging and highlight important story beats, character development, and memorable moments.
+"""
+        
+        messages = [
+            {"role": "system", "content": "You are a professional Dungeon Master creating engaging session recaps."},
+            {"role": "user", "content": prompt}
+        ]
+        
+        try:
+            response = await self.ainvoke(messages)
+            
+            # Parse response (handle both mock and real responses)
+            if self.is_mock:
+                # Mock response structure
+                return {
+                    "recap_text": "This is a mock session recap. In production, this would be an AI-generated narrative summary of the game session, highlighting key events, character moments, and story progression.",
+                    "key_events": [
+                        "Party entered the ancient dungeon",
+                        "Discovered mysterious artifact",
+                        "Defeated goblin ambush"
+                    ],
+                    "npcs_met": ["Eldrin the Wise", "Goblin Chief Grax"],
+                    "locations_visited": ["Ancient Dungeon Entrance", "Hall of Mirrors"],
+                    "decisions_made": [
+                        "Chose to spare the goblin prisoner",
+                        "Decided to explore the eastern passage"
+                    ],
+                    "combat_encounters": [
+                        "Goblin ambush - 4 goblins defeated"
+                    ]
+                }
+            else:
+                # Parse real OpenAI response
+                import json
+                content = response.content
+                
+                # Try to extract JSON from markdown code blocks
+                if "```json" in content:
+                    content = content.split("```json")[1].split("```")[0].strip()
+                elif "```" in content:
+                    content = content.split("```")[1].split("```")[0].strip()
+                
+                return json.loads(content)
+        
+        except Exception as e:
+            # Fallback response on error
+            return {
+                "recap_text": f"Error generating recap: {str(e)}",
+                "key_events": [],
+                "npcs_met": [],
+                "locations_visited": [],
+                "decisions_made": [],
+                "combat_encounters": []
+            }
+
+
 # Global service instance
 openai_service = OpenAIService()
