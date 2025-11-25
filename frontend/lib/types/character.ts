@@ -106,15 +106,24 @@ export interface Character {
   armor_class: number
   initiative_bonus: number
   speed: number
+  
+  // Hit dice (legacy and new)
   hit_dice?: {
     total: number
     current: number
     type: string  // e.g., "d8"
   }
+  hit_dice_total?: number
+  hit_dice_remaining?: number
+  hit_die_type?: string
+  
+  // Death saves (legacy and new)
   death_saves?: {
     successes: number
     failures: number
   }
+  death_save_successes?: number
+  death_save_failures?: number
   
   // Features & abilities
   proficiencies: string[]

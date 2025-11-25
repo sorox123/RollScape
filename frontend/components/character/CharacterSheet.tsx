@@ -16,10 +16,6 @@ import { useState, useEffect } from 'react';
 import { Character } from '@/lib/types/character';
 import { StatsTab } from './tabs/StatsTab';
 import { CombatTab } from './tabs/CombatTab';
-import { SpellsTab } from './tabs/SpellsTab';
-import { EquipmentTab } from './tabs/EquipmentTab';
-import { FeaturesTab } from './tabs/FeaturesTab';
-import { BiographyTab } from './tabs/BiographyTab';
 
 interface CharacterSheetProps {
   characterId: string;
@@ -180,18 +176,10 @@ export function CharacterSheet({ characterId, editable = true }: CharacterSheetP
           {activeTab === 'combat' && (
             <CombatTab character={character} updateCharacter={updateCharacter} editable={editable} />
           )}
-          {activeTab === 'spells' && (
-            <SpellsTab character={character} updateCharacter={updateCharacter} editable={editable} />
-          )}
-          {activeTab === 'equipment' && (
-            <EquipmentTab character={character} updateCharacter={updateCharacter} editable={editable} />
-          )}
-          {activeTab === 'features' && (
-            <FeaturesTab character={character} updateCharacter={updateCharacter} editable={editable} />
-          )}
-          {activeTab === 'biography' && (
-            <BiographyTab character={character} updateCharacter={updateCharacter} editable={editable} />
-          )}
+          {activeTab === 'spells' && <div className="text-center text-gray-500 py-8">Spells Tab - Coming Soon</div>}
+          {activeTab === 'equipment' && <div className="text-center text-gray-500 py-8">Equipment Tab - Coming Soon</div>}
+          {activeTab === 'features' && <div className="text-center text-gray-500 py-8">Features Tab - Coming Soon</div>}
+          {activeTab === 'biography' && <div className="text-center text-gray-500 py-8">Biography Tab - Coming Soon</div>}
         </div>
       </div>
     </div>
