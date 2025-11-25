@@ -121,3 +121,98 @@ body {
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
 }
+
+/* PWA & Mobile Optimizations */
+
+/* Prevent text selection on touch devices */
+.touch-action-none {
+  touch-action: none;
+}
+
+/* Improve tap target sizes for mobile */
+@media (max-width: 768px) {
+  button,
+  a,
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Remove tap highlight on mobile */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Safe area insets for notched devices */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Prevent zoom on input focus (iOS) */
+@media screen and (max-width: 768px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Pull to refresh override */
+body {
+  overscroll-behavior-y: contain;
+}
+
+/* Touch-friendly scrolling */
+.overflow-scroll,
+.overflow-y-scroll,
+.overflow-x-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Disable callout on long press */
+.no-callout {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Loading spinner for PWA */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Offline mode styles */
+.offline-mode {
+  filter: grayscale(0.3);
+  opacity: 0.9;
+}
+
+/* Install prompt animation */
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-bounce {
+  animation: bounce 2s infinite;
+}
