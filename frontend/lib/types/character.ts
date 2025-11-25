@@ -75,14 +75,29 @@ export interface Character {
   // Basic info
   race: string
   character_class: string
+  subclass?: string
   level: number
+  multiclass?: Array<{ class: string; level: number }>
   background: string
   alignment: string
   
+  // Appearance
+  age?: number
+  height?: string
+  weight?: string
+  eyes?: string
+  skin?: string
+  hair?: string
+  
   // Stats
   ability_scores: AbilityScores
+  ability_score_improvements?: Record<string, any>
+  proficiency_bonus: number
   skills: { [key: string]: Skill }
   saving_throws: { [key: string]: SavingThrow }
+  passive_perception: number
+  passive_investigation: number
+  passive_insight: number
   
   // Combat
   max_hp: number
@@ -106,8 +121,57 @@ export interface Character {
   languages: string[]
   features: Feature[]
   equipment: Equipment[]
+  
+  // Detailed equipment tracking
+  weapons?: Array<{
+    name: string
+    damage: string
+    damage_type: string
+    properties?: string[]
+    equipped?: boolean
+  }>
+  armor?: {
+    name: string
+    ac: number
+    type: string
+    equipped?: boolean
+  }
+  inventory?: Array<{
+    name: string
+    quantity: number
+    weight?: number
+    description?: string
+  }>
+  attunement_slots_used?: number
+  
+  // Currency
+  currency?: {
+    cp: number
+    sp: number
+    ep: number
+    gp: number
+    pp: number
+  }
+  
+  // Spellcasting
   spells: Spell[]
   spell_slots?: SpellSlots
+  spell_slots_used?: Record<number, number>
+  spellcasting_ability?: 'INT' | 'WIS' | 'CHA'
+  spell_save_dc?: number
+  spell_attack_bonus?: number
+  
+  // Class resources (Ki, Rage, Sorcery Points, etc.)
+  class_resources?: Record<string, {
+    max: number
+    current: number
+    name: string
+  }>
+  
+  // Status effects
+  inspiration?: boolean
+  exhaustion_level?: number
+  conditions?: string[]
   
   // Description
   description?: string

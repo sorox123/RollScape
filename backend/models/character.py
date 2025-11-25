@@ -41,14 +41,26 @@ class Character(Base):
     # Basic info
     race = Column(String(50))
     character_class = Column(String(100))  # "class" is reserved keyword
+    subclass = Column(String(100))
     level = Column(Integer, default=1)
+    multiclass = Column(FlexJSON, default=[])  # [{"class": "Fighter", "level": 3}]
     background = Column(String(100))
     alignment = Column(String(50))
     
+    # Appearance
+    age = Column(Integer)
+    height = Column(String(20))
+    weight = Column(String(20))
+    eyes = Column(String(50))
+    skin = Column(String(50))
+    hair = Column(String(50))
+    
     # Stats (stored as JSON for flexibility across rule systems)
     ability_scores = Column(FlexJSON, default={})  # {"str": 10, "dex": 14, ...}
+    ability_score_improvements = Column(FlexJSON, default={})  # Track ASI history
     skills = Column(FlexJSON, default={})
     saving_throws = Column(FlexJSON, default={})
+    proficiency_bonus = Column(Integer, default=2)
     
     # Combat stats
     max_hp = Column(Integer, default=10)
@@ -58,12 +70,45 @@ class Character(Base):
     initiative_bonus = Column(Integer, default=0)
     speed = Column(Integer, default=30)
     
+    # Death saves
+    death_save_successes = Column(Integer, default=0)
+    death_save_failures = Column(Integer, default=0)
+    
+    # Hit dice
+    hit_dice_total = Column(Integer, default=1)
+    hit_dice_remaining = Column(Integer, default=1)
+    hit_die_type = Column(String(10), default="d8")
+    
+    # Passive scores
+    passive_perception = Column(Integer, default=10)
+    passive_investigation = Column(Integer, default=10)
+    passive_insight = Column(Integer, default=10)
+    
     # Features
     proficiencies = Column(FlexJSON, default=[])
     languages = Column(FlexJSON, default=[])
     features = Column(FlexJSON, default=[])
-    equipment = Column(FlexJSON, default=[])
+    
+    # Equipment (detailed tracking)
+    weapons = Column(FlexJSON, default=[])
+    armor = Column(FlexJSON, default={})
+    inventory = Column(FlexJSON, default=[])
+    equipment = Column(FlexJSON, default=[])  # Legacy field, keeping for compatibility
+    attunement_slots_used = Column(Integer, default=0)
+    
+    # Currency
+    currency = Column(FlexJSON, default={"cp": 0, "sp": 0, "ep": 0, "gp": 0, "pp": 0})
+    
+    # Spellcasting
     spells = Column(FlexJSON, default=[])
+    spell_slots = Column(FlexJSON, default={})  # {"1": 4, "2": 3, ...}
+    spell_slots_used = Column(FlexJSON, default={})
+    spellcasting_ability = Column(String(3))  # INT, WIS, CHA
+    spell_save_dc = Column(Integer)
+    spell_attack_bonus = Column(Integer)
+    
+    # Class resources (Ki, Rage, Sorcery Points, etc.)
+    class_resources = Column(FlexJSON, default={})
     
     # Description
     description = Column(Text)
@@ -83,6 +128,11 @@ class Character(Base):
     
     # Experience
     experience_points = Column(Integer, default=0)
+    
+    # Status effects
+    inspiration = Column(Boolean, default=False)
+    exhaustion_level = Column(Integer, default=0)
+    conditions = Column(FlexJSON, default=[])  # ["poisoned", "charmed"]
     
     # Notes
     dm_notes = Column(Text)  # Private DM notes
