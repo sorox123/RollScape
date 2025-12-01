@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="192" height="192" viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="192" height="192" fill="#2563eb"/>
+  
+  <!-- Gradient overlay -->
+  <defs>
+    <radialGradient id="grad192">
+      <stop offset="0%" style="stop-color:rgba(255,255,255,0.1)"/>
+      <stop offset="100%" style="stop-color:rgba(0,0,0,0.2)"/>
+    </radialGradient>
+  </defs>
+  <rect width="192" height="192" fill="url(#grad192)"/>
+  
+  <!-- D20 dice shape -->
+  <polygon points="96,48 141.65071278216737,81.16718427000252 124.2136921100387,134.8328157299975 67.7863078899613,134.8328157299975 50.349287217832625,81.16718427000254" 
+           fill="rgba(255, 255, 255, 0.15)" 
+           stroke="#ffffff" 
+           stroke-width="6.4"/>
+  
+  <!-- "20" text -->
+  <text x="96" y="99.84" 
+        font-family="Arial, sans-serif" 
+        font-weight="bold" 
+        font-size="48" 
+        fill="#ffffff" 
+        text-anchor="middle" 
+        dominant-baseline="middle">20</text>
+  
+  <!-- "RS" text -->
+  <text x="96" y="158.4" 
+        font-family="Arial, sans-serif" 
+        font-weight="bold" 
+        font-size="23.04" 
+        fill="#ffffff" 
+        text-anchor="middle" 
+        dominant-baseline="middle">RS</text>
+</svg>

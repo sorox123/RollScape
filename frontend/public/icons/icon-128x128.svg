@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="128" height="128" fill="#2563eb"/>
+  
+  <!-- Gradient overlay -->
+  <defs>
+    <radialGradient id="grad128">
+      <stop offset="0%" style="stop-color:rgba(255,255,255,0.1)"/>
+      <stop offset="100%" style="stop-color:rgba(0,0,0,0.2)"/>
+    </radialGradient>
+  </defs>
+  <rect width="128" height="128" fill="url(#grad128)"/>
+  
+  <!-- D20 dice shape -->
+  <polygon points="64,32 94.43380852144492,54.11145618000168 82.80912807335915,89.88854381999832 45.19087192664087,89.88854381999832 33.56619147855508,54.11145618000169" 
+           fill="rgba(255, 255, 255, 0.15)" 
+           stroke="#ffffff" 
+           stroke-width="4.266666666666667"/>
+  
+  <!-- "20" text -->
+  <text x="64" y="66.56" 
+        font-family="Arial, sans-serif" 
+        font-weight="bold" 
+        font-size="32" 
+        fill="#ffffff" 
+        text-anchor="middle" 
+        dominant-baseline="middle">20</text>
+  
+  
+</svg>
