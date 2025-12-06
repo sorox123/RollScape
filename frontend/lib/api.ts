@@ -102,13 +102,16 @@ export const apiCampaigns = {
   ),
   delete: (campaignId: string) => handleResponse<MessageResponse>(apiClient.delete(`/api/campaigns/${campaignId}`)),
   list: () => handleResponse<CampaignListItem[]>(apiClient.get('/api/campaigns')),
-  getMyCampaigns: () => handleResponse<CampaignListItem[]>(apiClient.get('/api/campaigns/my')),
-  getMembers: (campaignId: string) => handleResponse<User[]>(apiClient.get(`/api/campaigns/${campaignId}/members`)),
-  addMember: (campaignId: string, userId: string) => handleResponse<MessageResponse>(
-    apiClient.post(`/api/campaigns/${campaignId}/members`, { user_id: userId })
+  getMyCampaigns: () => handleResponse<CampaignListItem[]>(apiClient.get('/api/campaigns/my-campaigns')),
+  getMembers: (campaignId: string) => handleResponse<any[]>(apiClient.get(`/api/campaigns/${campaignId}/members`)),
+  inviteMember: (campaignId: string, emailOrUsername: string, role?: string) => handleResponse<MessageResponse>(
+    apiClient.post(`/api/campaigns/${campaignId}/invite`, { email_or_username: emailOrUsername, role: role || 'player' })
   ),
-  removeMember: (campaignId: string, userId: string) => handleResponse<MessageResponse>(
-    apiClient.delete(`/api/campaigns/${campaignId}/members/${userId}`)
+  removeMember: (campaignId: string, memberId: string) => handleResponse<MessageResponse>(
+    apiClient.delete(`/api/campaigns/${campaignId}/members/${memberId}`)
+  ),
+  joinCampaign: (campaignId: string, message?: string) => handleResponse<MessageResponse>(
+    apiClient.post(`/api/campaigns/${campaignId}/join`, { message })
   ),
 }
 

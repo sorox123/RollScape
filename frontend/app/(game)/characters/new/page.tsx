@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, Dices } from 'lucide-react'
 import { apiCharacters, apiDice } from '@/lib/api'
 import { CharacterCreateData, AbilityScores, calculateModifier, ABILITY_NAMES } from '@/lib/types/character'
 
-type Step = 'basics' | 'abilities' | 'details' | 'review'
+type Step = 'basics' | 'abilities' | 'details' | 'personality' | 'review'
 
 const DND_RACES = [
   'Human', 'Elf', 'Dwarf', 'Halfling', 'Dragonborn', 
@@ -57,6 +57,11 @@ export default function NewCharacterPage() {
     speed: 30,
     description: '',
     backstory: '',
+    personality_traits: '',
+    ideals: '',
+    bonds: '',
+    flaws: '',
+    dm_notes: '',
   })
 
   async function handleCreate() {
@@ -107,7 +112,7 @@ export default function NewCharacterPage() {
     setFormData({ ...formData, ability_scores: scores })
   }
 
-  const steps: Step[] = ['basics', 'abilities', 'details', 'review']
+  const steps: Step[] = ['basics', 'abilities', 'details', 'personality', 'review']
   const currentStepIndex = steps.indexOf(step)
 
   return (
@@ -154,6 +159,9 @@ export default function NewCharacterPage() {
           )}
           {step === 'details' && (
             <DetailsStep formData={formData} setFormData={setFormData} />
+          )}
+          {step === 'personality' && (
+            <PersonalityStep formData={formData} setFormData={setFormData} />
           )}
           {step === 'review' && (
             <ReviewStep formData={formData} />
@@ -399,6 +407,93 @@ function DetailsStep({ formData, setFormData }: any) {
           className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg"
           rows={6}
           placeholder="Character history and background story"
+        />
+      </div>
+    </div>
+  )
+}
+
+function PersonalityStep({ formData, setFormData }: any) {
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold">Personality & Background</h2>
+
+      <div className="bg-blue-900/20 border border-blue-600 rounded-lg p-4">
+        <p className="text-sm text-blue-300">
+          ℹ️ These fields help flesh out your character's personality and motivations.
+        </p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-semibold mb-2">Personality Traits</label>
+        <textarea
+          value={formData.personality_traits || ''}
+          onChange={(e) => setFormData({ ...formData, personality_traits: e.target.value })}
+          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg"
+          rows={3}
+          placeholder="How does your character behave? (e.g., 'I always have a plan for what to do when things go wrong.')"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-semibold mb-2">Ideals</label>
+        <textarea
+          value={formData.ideals || ''}
+          onChange={(e) => setFormData({ ...formData, ideals: e.target.value })}
+          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg"
+          rows={2}
+          placeholder="What principles drive your character? (e.g., 'Freedom: Chains are meant to be broken.')"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-semibold mb-2">Bonds</label>
+        <textarea
+          value={formData.bonds || ''}
+          onChange={(e) => setFormData({ ...formData, bonds: e.target.value })}
+          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg"
+          rows={2}
+          placeholder="What connections matter most? (e.g., 'I would die to recover an ancient relic.')"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-semibold mb-2">Flaws</label>
+        <textarea
+          value={formData.flaws || ''}
+          onChange={(e) => setFormData({ ...formData, flaws: e.target.value })}
+          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg"
+          rows={2}
+          placeholder="What weaknesses does your character have? (e.g., 'I can't resist a pretty face.')"
+        />
+      </div>
+
+      <div className="bg-yellow-900/20 border border-yellow-600 rounded-lg p-4">
+        <h3 className="font-bold text-yellow-400 mb-2 flex items-center gap-2">
+          <span>👁️</span> 
+          <span>Visible to DM/AI DM Only</span>
+        </h3>
+        <p className="text-sm text-yellow-200 mb-3">
+          The fields above (personality, ideals, bonds, flaws) are visible to the DM and AI DM to help craft personal storylines, 
+          but remain hidden from other players by default.
+        </p>
+      </div>
+
+      <div className="bg-red-900/20 border border-red-600 rounded-lg p-4">
+        <h3 className="font-bold text-red-400 mb-2 flex items-center gap-2">
+          <span>🔒</span>
+          <span>DM Notes Only</span>
+        </h3>
+        <p className="text-sm text-red-200 mb-3">
+          This section is completely private and only visible to the DM. Use it for secret motivations, 
+          hidden plot hooks, or any information that should never be revealed to players.
+        </p>
+        <textarea
+          value={formData.dm_notes || ''}
+          onChange={(e) => setFormData({ ...formData, dm_notes: e.target.value })}
+          className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg"
+          rows={4}
+          placeholder="Secret information, plot hooks, hidden agendas, or anything the DM should know that players shouldn't..."
         />
       </div>
     </div>

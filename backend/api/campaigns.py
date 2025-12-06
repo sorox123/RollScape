@@ -15,9 +15,14 @@ from schemas import (
     CampaignUpdate, 
     CampaignResponse, 
     CampaignListItem,
-    MessageResponse
+    MessageResponse,
+    CampaignMemberCreate,
+    CampaignMemberResponse,
+    CampaignMemberInvite,
+    CampaignJoinRequest
 )
 from models import Campaign, CampaignStatus, CampaignVisibility, User
+from models.campaign_member import CampaignMember, MemberRole
 from utils.sanitize import sanitize_html
 
 router = APIRouter(prefix="/api/campaigns", tags=["campaigns"])
@@ -227,13 +232,15 @@ async def delete_campaign(
 @router.post("/{campaign_id}/join", response_model=MessageResponse)
 async def join_campaign(
     campaign_id: UUID,
-    db: Session = Depends(get_db)
+    join_data: Optional[CampaignJoinRequest] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Request to join a campaign.
     
     - Public campaigns: auto-join
-    - Invite-only: create join request for DM approval
+    - Invite-only: requires DM invitation
     """
     campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
     
@@ -243,17 +250,209 @@ async def join_campaign(
             detail="Campaign not found"
         )
     
-    if not campaign.can_accept_players:
+    # Check if user is already a member
+    existing_member = db.query(CampaignMember).filter(
+        CampaignMember.campaign_id == campaign_id,
+        CampaignMember.user_id == current_user.id
+    ).first()
+    
+    if existing_member:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Campaign is not accepting new players"
+            detail="You are already a member of this campaign"
         )
     
-    # TODO: Check if user already in campaign
-    # TODO: Add user to campaign_members table
-    # TODO: Handle invite-only logic
+    # Check if campaign is full
+    member_count = db.query(CampaignMember).filter(
+        CampaignMember.campaign_id == campaign_id
+    ).count()
     
+    if member_count >= campaign.max_players:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Campaign is full"
+        )
+    
+    # Public campaigns: auto-join
+    if campaign.visibility == CampaignVisibility.PUBLIC:
+        new_member = CampaignMember(
+            campaign_id=campaign_id,
+            user_id=current_user.id,
+            role=MemberRole.PLAYER
+        )
+        db.add(new_member)
+        db.commit()
+        
+        return MessageResponse(
+            message="Successfully joined campaign",
+            detail=f"You are now a member of '{campaign.name}'"
+        )
+    
+    # Invite-only campaigns: would need approval system
+    # For now, return a message that it needs DM approval
     raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Campaign membership not yet implemented"
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="This campaign requires an invitation from the DM"
+    )
+
+
+@router.get("/{campaign_id}/members", response_model=List[CampaignMemberResponse])
+async def get_campaign_members(
+    campaign_id: UUID,
+    db: Session = Depends(get_db)
+):
+    """
+    Get all members of a campaign.
+    """
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+    
+    members = db.query(CampaignMember).filter(
+        CampaignMember.campaign_id == campaign_id
+    ).all()
+    
+    # Enrich with user details
+    result = []
+    for member in members:
+        user = db.query(User).filter(User.id == member.user_id).first()
+        member_data = {
+            "id": member.id,
+            "campaign_id": member.campaign_id,
+            "user_id": member.user_id,
+            "character_id": member.character_id,
+            "role": member.role,
+            "joined_at": member.joined_at,
+            "user_email": user.email if user else None,
+            "user_username": user.username if user else None,
+            "user_display_name": user.display_name if user else None,
+        }
+        result.append(member_data)
+    
+    return result
+
+
+@router.post("/{campaign_id}/invite", response_model=MessageResponse)
+async def invite_to_campaign(
+    campaign_id: UUID,
+    invite_data: CampaignMemberInvite,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Invite a user to join a campaign (DM only).
+    """
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+    
+    # Check if current user is the DM
+    if campaign.dm_user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the DM can invite players"
+        )
+    
+    # Find user by email or username
+    user_to_invite = db.query(User).filter(
+        (User.email == invite_data.email_or_username) |
+        (User.username == invite_data.email_or_username)
+    ).first()
+    
+    if not user_to_invite:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    # Check if user is already a member
+    existing_member = db.query(CampaignMember).filter(
+        CampaignMember.campaign_id == campaign_id,
+        CampaignMember.user_id == user_to_invite.id
+    ).first()
+    
+    if existing_member:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is already a member of this campaign"
+        )
+    
+    # Check if campaign is full
+    member_count = db.query(CampaignMember).filter(
+        CampaignMember.campaign_id == campaign_id
+    ).count()
+    
+    if member_count >= campaign.max_players:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Campaign is full"
+        )
+    
+    # Add user to campaign
+    new_member = CampaignMember(
+        campaign_id=campaign_id,
+        user_id=user_to_invite.id,
+        role=invite_data.role
+    )
+    db.add(new_member)
+    db.commit()
+    
+    # TODO: Send email notification to invited user
+    
+    return MessageResponse(
+        message="Invitation sent successfully",
+        detail=f"{user_to_invite.username} has been added to '{campaign.name}'"
+    )
+
+
+@router.delete("/{campaign_id}/members/{member_id}", response_model=MessageResponse)
+async def remove_campaign_member(
+    campaign_id: UUID,
+    member_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Remove a member from a campaign (DM only or self-remove).
+    """
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+    
+    member = db.query(CampaignMember).filter(
+        CampaignMember.id == member_id,
+        CampaignMember.campaign_id == campaign_id
+    ).first()
+    
+    if not member:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Member not found"
+        )
+    
+    # Check permissions: DM can remove anyone, users can remove themselves
+    if campaign.dm_user_id != current_user.id and member.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to remove this member"
+        )
+    
+    db.delete(member)
+    db.commit()
+    
+    return MessageResponse(
+        message="Member removed successfully",
+        detail="User has been removed from the campaign"
     )

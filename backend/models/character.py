@@ -140,6 +140,7 @@ class Character(Base):
     
     # Relationships
     active_effects = relationship("CharacterEffect", back_populates="character", cascade="all, delete-orphan")
+    character_spells = relationship("CharacterSpell", back_populates="character", cascade="all, delete-orphan")
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

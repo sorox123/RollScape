@@ -93,8 +93,8 @@ export default function SpellBrowser({
     try {
       setLoading(true);
       const url = campaignId
-        ? `http://localhost:8000/api/spells/campaigns/${campaignId}/spells`
-        : 'http://localhost:8000/api/spells/';
+        ? `/api/spells/campaigns/${campaignId}/spells`
+        : '/api/spells/';
       
       const response = await fetch(url);
       if (response.ok) {
@@ -176,23 +176,50 @@ export default function SpellBrowser({
   };
 
   const handleAddToSpellbook = async (spellId: string) => {
-    if (!characterId) return;
+    if (!characterId) {
+      alert('No character selected. Please select a character first.');
+      return;
+    }
     
     try {
+      console.log('Adding spell to character spellbook:', { characterId, spellId });
+      
       const response = await fetch(
-        `http://localhost:8000/api/spells/characters/${characterId}/spellbook?spell_id=${spellId}&prepared=false`,
-        { method: 'POST' }
+        `/api/spells/characters/${characterId}/spellbook`,
+        { 
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            spell_id: spellId, 
+            prepared: false,
+            source: 'class'
+          })
+        }
       );
       
       if (response.ok) {
+        const result = await response.json();
+        console.log('Spell added successfully:', result);
+        
         if (onAddToSpellbook) {
           onAddToSpellbook(spellId);
         }
-        alert('Spell added to spellbook!');
+        alert('✨ Spell added to your spellbook!');
+      } else {
+        const errorText = await response.text();
+        console.error('Failed to add spell:', errorText);
+        
+        if (response.status === 400 && errorText.includes('already in spellbook')) {
+          alert('This spell is already in your spellbook!');
+        } else if (response.status === 404) {
+          alert('Character or spell not found. Please try again.');
+        } else {
+          alert(`Failed to add spell: ${errorText}`);
+        }
       }
     } catch (error) {
       console.error('Error adding spell:', error);
-      alert('Failed to add spell to spellbook');
+      alert('Network error. Please check your connection and try again.');
     }
   };
 

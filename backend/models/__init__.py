@@ -12,6 +12,7 @@ from models.campaign_member import CampaignMember, MemberRole
 from models.character_effect import CharacterEffect, EffectType
 from models.session_log import SessionLog
 from models.generated_content import GeneratedImage, GeneratedMap, ImageType, MapType
+from models.spell import Spell, CharacterSpell, SpellSchool, SpellSource
 
 # Export all models
 __all__ = [
@@ -35,4 +36,8 @@ __all__ = [
     "GeneratedMap",
     "ImageType",
     "MapType",
+    "Spell",
+    "CharacterSpell",
+    "SpellSchool",
+    "SpellSource",
 ]

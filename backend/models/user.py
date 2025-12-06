@@ -3,7 +3,7 @@ User model - Core authentication and profile management.
 """
 
 from sqlalchemy import Column, String, Boolean, DateTime, Enum, Integer
-
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
 from db_types import GUID, FlexJSON
@@ -69,6 +69,9 @@ class User(Base):
     
     # Preferences
     preferences = Column(String, default='{}')  # JSON string
+    
+    # Relationships
+    created_spells = relationship("Spell", back_populates="created_by", foreign_keys="Spell.created_by_user_id")
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

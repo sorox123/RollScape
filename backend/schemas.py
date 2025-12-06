@@ -9,6 +9,7 @@ from uuid import UUID
 from models.user import SubscriptionTier, SubscriptionStatus
 from models.campaign import CampaignStatus, CampaignVisibility
 from models.character import CharacterType
+from models.campaign_member import MemberRole
 
 
 # ============= USER SCHEMAS =============
@@ -64,8 +65,8 @@ class CampaignBase(BaseModel):
 
 class CampaignCreate(CampaignBase):
     """Schema for creating a campaign"""
-    description: str = Field(..., min_length=1, max_length=5000, description="Campaign description (required)")
     ai_dm_enabled: bool = False
+    ai_dm_personality: Optional[str] = None
     ai_players_enabled: bool = False
     
     @field_validator('name', mode='before')
@@ -77,17 +78,6 @@ class CampaignCreate(CampaignBase):
             raise ValueError(f'Name too long: {len(v)} characters (max 200)')
         if len(v) < 1:
             raise ValueError('Name cannot be empty')
-        return v
-    
-    @field_validator('description', mode='before')
-    @classmethod
-    def validate_description_length(cls, v: str) -> str:
-        if not v or not isinstance(v, str):
-            raise ValueError('Description is required and must be a string')
-        if len(v) > 5000:
-            raise ValueError(f'Description too long: {len(v)} characters (max 5000)')
-        if len(v) < 1:
-            raise ValueError('Description cannot be empty')
         return v
 
 
@@ -141,6 +131,46 @@ class CampaignListItem(BaseModel):
     created_at: datetime
 
 
+# ============= CAMPAIGN MEMBER SCHEMAS =============
+
+class CampaignMemberBase(BaseModel):
+    """Base campaign member fields"""
+    role: MemberRole = MemberRole.PLAYER
+
+
+class CampaignMemberCreate(CampaignMemberBase):
+    """Schema for adding a member to campaign"""
+    user_id: UUID
+    character_id: Optional[UUID] = None
+
+
+class CampaignMemberInvite(BaseModel):
+    """Schema for inviting a user by email or username"""
+    email_or_username: str = Field(..., min_length=1)
+    role: MemberRole = MemberRole.PLAYER
+    message: Optional[str] = Field(None, max_length=500)
+
+
+class CampaignMemberResponse(CampaignMemberBase):
+    """Schema for campaign member response"""
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: UUID
+    campaign_id: UUID
+    user_id: UUID
+    character_id: Optional[UUID]
+    joined_at: datetime
+    # User details
+    user_email: Optional[str] = None
+    user_username: Optional[str] = None
+    user_display_name: Optional[str] = None
+
+
+class CampaignJoinRequest(BaseModel):
+    """Schema for requesting to join a campaign"""
+    message: Optional[str] = Field(None, max_length=500)
+
+
 # ============= CHARACTER SCHEMAS =============
 
 class CharacterBase(BaseModel):
@@ -160,6 +190,14 @@ class CharacterCreate(CharacterBase):
     ability_scores: dict = Field(default_factory=dict)
     max_hp: int = Field(default=10, ge=1)
     armor_class: int = Field(default=10, ge=1)
+    speed: int = Field(default=30, ge=0)
+    description: Optional[str] = Field(None, max_length=2000)
+    backstory: Optional[str] = Field(None, max_length=10000)
+    personality_traits: Optional[str] = Field(None, max_length=2000)
+    ideals: Optional[str] = Field(None, max_length=2000)
+    bonds: Optional[str] = Field(None, max_length=2000)
+    flaws: Optional[str] = Field(None, max_length=2000)
+    dm_notes: Optional[str] = Field(None, max_length=10000)
 
 
 class CharacterUpdate(BaseModel):
@@ -172,10 +210,15 @@ class CharacterUpdate(BaseModel):
     armor_class: Optional[int] = Field(None, ge=1, le=99)
     description: Optional[str] = Field(None, max_length=2000)
     backstory: Optional[str] = Field(None, max_length=10000)
+    personality_traits: Optional[str] = Field(None, max_length=2000)
+    ideals: Optional[str] = Field(None, max_length=2000)
+    bonds: Optional[str] = Field(None, max_length=2000)
+    flaws: Optional[str] = Field(None, max_length=2000)
     avatar_url: Optional[str] = Field(None, max_length=500)
     equipment: Optional[list] = None
     spells: Optional[list] = None
     player_notes: Optional[str] = Field(None, max_length=10000)
+    dm_notes: Optional[str] = Field(None, max_length=10000)
 
 
 class CharacterResponse(CharacterBase):
@@ -197,6 +240,12 @@ class CharacterResponse(CharacterBase):
     speed: int
     description: Optional[str]
     backstory: Optional[str]
+    personality_traits: Optional[str]
+    ideals: Optional[str]
+    bonds: Optional[str]
+    flaws: Optional[str]
+    dm_notes: Optional[str]
+    player_notes: Optional[str]
     avatar_url: Optional[str]
     token_url: Optional[str]
     experience_points: int

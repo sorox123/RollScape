@@ -5,7 +5,8 @@ Loads D&D 5e SRD (System Reference Document) spells into the spell library.
 These are the free, open-source spells from the official rules.
 """
 
-from api.spells import spells, Spell, SpellSchool, SpellSource
+from models.spell import Spell, SpellSchool, SpellSource
+from database import get_db
 
 
 def load_srd_spells():
@@ -244,30 +245,61 @@ def load_srd_spells():
         },
     ]
     
-    # Load spells
-    loaded_count = 0
-    for spell_data in srd_spell_data:
-        spell = Spell(
-            **spell_data,
-            source=SpellSource.SRD
-        )
-        spells[spell.id] = spell
-        loaded_count += 1
+    # Get database session
+    db = next(get_db())
     
-    print(f"✅ Loaded {loaded_count} SRD spells")
-    return loaded_count
+    try:
+        # Check if spells already loaded
+        existing_count = db.query(Spell).filter(Spell.source == SpellSource.SRD).count()
+        if existing_count > 0:
+            print(f"✅ {existing_count} SRD spells already in database")
+            return existing_count
+        
+        # Load spells
+        loaded_count = 0
+        for spell_data in srd_spell_data:
+            # Convert lists to comma-separated strings
+            if 'components' in spell_data and isinstance(spell_data['components'], list):
+                spell_data['components'] = ','.join(spell_data['components'])
+            if 'classes' in spell_data and isinstance(spell_data['classes'], list):
+                spell_data['classes'] = ','.join(spell_data['classes'])
+            if 'tags' in spell_data and isinstance(spell_data['tags'], list):
+                spell_data['tags'] = ','.join(spell_data['tags'])
+            
+            spell = Spell(
+                **spell_data,
+                source=SpellSource.SRD
+            )
+            db.add(spell)
+            loaded_count += 1
+        
+        db.commit()
+        print(f"✅ Loaded {loaded_count} SRD spells into database")
+        return loaded_count
+        
+    except Exception as e:
+        db.rollback()
+        print(f"❌ Error loading SRD spells: {e}")
+        return 0
+    finally:
+        db.close()
 
 
 if __name__ == "__main__":
     count = load_srd_spells()
     print(f"\nTotal SRD spells in library: {count}")
     
-    # Print summary
-    by_level = {}
-    for spell in spells.values():
-        by_level[spell.level] = by_level.get(spell.level, 0) + 1
-    
-    print("\nSpells by level:")
-    for level in sorted(by_level.keys()):
-        level_name = "Cantrips" if level == 0 else f"Level {level}"
-        print(f"  {level_name}: {by_level[level]}")
+    # Print summary from database
+    db = next(get_db())
+    try:
+        by_level = {}
+        spells_in_db = db.query(Spell).filter(Spell.source == SpellSource.SRD).all()
+        for spell in spells_in_db:
+            by_level[spell.level] = by_level.get(spell.level, 0) + 1
+        
+        print("\nSpells by level:")
+        for level in sorted(by_level.keys()):
+            level_name = "Cantrips" if level == 0 else f"Level {level}"
+            print(f"  {level_name}: {by_level[level]}")
+    finally:
+        db.close()

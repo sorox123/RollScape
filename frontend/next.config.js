@@ -9,6 +9,25 @@ const nextConfig = {
       },
     ]
   },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Exclude canvas from client-side bundle
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        canvas: false,
+      };
+    }
+    
+    // Ignore .node binary files completely
+    config.plugins = config.plugins || [];
+    config.plugins.push(
+      new (require('webpack').IgnorePlugin)({
+        resourceRegExp: /canvas\.node$/,
+      })
+    );
+    
+    return config;
+  },
 }
 
 module.exports = nextConfig

@@ -141,21 +141,41 @@ export default function SpellCreator({
       return;
     }
 
+    if (!formData.description) {
+      alert('Please add a description for your spell');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
       const url = campaignId
-        ? `http://localhost:8000/api/spells/campaigns/${campaignId}/spells`
-        : 'http://localhost:8000/api/spells/';
+        ? `/api/spells/campaigns/${campaignId}/spells`
+        : '/api/spells/';
 
       const payload = {
-        ...formData,
-        save_type: formData.save_type || undefined,
-        damage_type: formData.damage_type || undefined,
-        damage_dice: formData.damage_dice || undefined,
-        material_components: formData.material_components || undefined,
-        at_higher_levels: formData.at_higher_levels || undefined
+        name: formData.name,
+        level: formData.level,
+        school: formData.school,
+        casting_time: formData.casting_time,
+        range: formData.range,
+        components: formData.components,
+        material_components: formData.material_components || null,
+        duration: formData.duration,
+        concentration: formData.concentration,
+        ritual: formData.ritual,
+        description: formData.description,
+        at_higher_levels: formData.at_higher_levels || null,
+        damage_dice: formData.damage_dice || null,
+        damage_type: formData.damage_type || null,
+        save_type: formData.save_type || null,
+        spell_attack: formData.spell_attack,
+        classes: formData.classes,
+        tags: formData.tags,
+        is_public: formData.is_public
       };
+
+      console.log('Sending spell creation request:', { url, payload });
 
       const response = await fetch(url, {
         method: 'POST',
@@ -163,8 +183,11 @@ export default function SpellCreator({
         body: JSON.stringify(payload)
       });
 
+      console.log('Response status:', response.status);
+
       if (response.ok) {
         const spell = await response.json();
+        console.log('Spell created:', spell);
         if (onSpellCreated) {
           onSpellCreated(spell);
         }
@@ -173,12 +196,18 @@ export default function SpellCreator({
           onClose();
         }
       } else {
-        const error = await response.json();
-        alert(`Failed to create spell: ${error.detail || 'Unknown error'}`);
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        try {
+          const error = JSON.parse(errorText);
+          alert(`Failed to create spell: ${error.detail || JSON.stringify(error)}`);
+        } catch {
+          alert(`Failed to create spell: ${errorText}`);
+        }
       }
     } catch (error) {
       console.error('Error creating spell:', error);
-      alert('Failed to create spell');
+      alert(`Failed to create spell: ${error instanceof Error ? error.message : 'Network error'}`);
     } finally {
       setSubmitting(false);
     }

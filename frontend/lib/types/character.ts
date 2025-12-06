@@ -225,6 +225,11 @@ export interface CharacterCreateData {
   speed?: number
   description?: string
   backstory?: string
+  personality_traits?: string
+  ideals?: string
+  bonds?: string
+  flaws?: string
+  dm_notes?: string
   avatar_url?: string
 }
 

@@ -83,6 +83,7 @@ class Campaign(Base):
     
     # Relationships
     members = relationship("CampaignMember", back_populates="campaign", cascade="all, delete-orphan")
+    spells = relationship("Spell", back_populates="campaign", cascade="all, delete-orphan")
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -7,6 +7,9 @@ interface BiographyProps {
 }
 
 export default function Biography({ character, isEditing, onSave }: BiographyProps) {
+  // TODO: Get actual user role (DM/Player) from context or API
+  const isDM = true // For now, assume current user can see DM content
+
   if (!isEditing) {
     return (
       <div className="space-y-6">
@@ -20,12 +23,38 @@ export default function Biography({ character, isEditing, onSave }: BiographyPro
         <InfoSection title="Description" content={character.description} />
         <InfoSection title="Backstory" content={character.backstory} />
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <InfoSection title="Personality Traits" content={character.personality_traits} />
-          <InfoSection title="Ideals" content={character.ideals} />
-          <InfoSection title="Bonds" content={character.bonds} />
-          <InfoSection title="Flaws" content={character.flaws} />
+        {/* DM-Visible Section */}
+        <div className="bg-yellow-900/10 border border-yellow-600/30 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-xl">👁️</span>
+            <h3 className="text-lg font-bold text-yellow-400">DM/AI DM Visible</h3>
+            <span className="text-xs text-yellow-300 bg-yellow-900/30 px-2 py-1 rounded">
+              Hidden from other players
+            </span>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <InfoSection title="Personality Traits" content={character.personality_traits} />
+            <InfoSection title="Ideals" content={character.ideals} />
+            <InfoSection title="Bonds" content={character.bonds} />
+            <InfoSection title="Flaws" content={character.flaws} />
+          </div>
         </div>
+
+        {/* DM-Only Section */}
+        {isDM && (
+          <div className="bg-red-900/10 border border-red-600/30 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-xl">🔒</span>
+              <h3 className="text-lg font-bold text-red-400">DM Only</h3>
+              <span className="text-xs text-red-300 bg-red-900/30 px-2 py-1 rounded">
+                Completely private
+              </span>
+            </div>
+            
+            <InfoSection title="DM Notes" content={character.dm_notes} />
+          </div>
+        )}
 
         <InfoSection title="Player Notes" content={character.player_notes} />
       </div>
@@ -33,7 +62,7 @@ export default function Biography({ character, isEditing, onSave }: BiographyPro
   }
 
   return (
-    <EditableBiography character={character} onSave={onSave} />
+    <EditableBiography character={character} onSave={onSave} isDM={isDM} />
   )
 }
 
@@ -48,7 +77,7 @@ function InfoSection({ title, content }: { title: string; content?: string }) {
   )
 }
 
-function EditableBiography({ character, onSave }: { character: Character; onSave: (updates: Partial<Character>) => void }) {
+function EditableBiography({ character, onSave, isDM }: { character: Character; onSave: (updates: Partial<Character>) => void; isDM: boolean }) {
   const [formData, setFormData] = React.useState({
     description: character.description || '',
     backstory: character.backstory || '',
@@ -57,6 +86,7 @@ function EditableBiography({ character, onSave }: { character: Character; onSave
     bonds: character.bonds || '',
     flaws: character.flaws || '',
     player_notes: character.player_notes || '',
+    dm_notes: character.dm_notes || '',
   })
 
   function handleSave() {
@@ -154,6 +184,23 @@ function EditableBiography({ character, onSave }: { character: Character; onSave
             placeholder="Your personal notes about this character"
           />
         </div>
+
+        {isDM && (
+          <div className="bg-red-900/10 border border-red-600/30 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xl">🔒</span>
+              <h3 className="text-lg font-bold text-red-400">DM Only</h3>
+            </div>
+            <label className="block text-sm font-semibold mb-2">DM Notes</label>
+            <textarea
+              value={formData.dm_notes}
+              onChange={(e) => setFormData({ ...formData, dm_notes: e.target.value })}
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded"
+              rows={4}
+              placeholder="Private notes visible only to the DM..."
+            />
+          </div>
+        )}
       </div>
     </div>
   )

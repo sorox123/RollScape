@@ -53,6 +53,12 @@ export default function Dashboard() {
               <Link href="/characters" className="text-slate-300 hover:text-white transition-colors">
                 Characters
               </Link>
+              <Link href="/spells" className="text-slate-300 hover:text-white transition-colors">
+                Spells
+              </Link>
+              <Link href="/my-spells" className="text-slate-300 hover:text-white transition-colors">
+                My Spells
+              </Link>
               <Link href="/friends" className="text-slate-300 hover:text-white transition-colors">
                 Friends
               </Link>
@@ -143,11 +149,25 @@ export default function Dashboard() {
             color="yellow"
           />
           <QuickActionCard
+            icon={<svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>}
+            title="Spell Library"
+            description="Browse & create spells"
+            href="/spells"
+            color="purple"
+          />
+          <QuickActionCard
+            icon={<svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>}
+            title="My Spells"
+            description="Your homebrew collection"
+            href="/my-spells"
+            color="pink"
+          />
+          <QuickActionCard
             icon={<MessageCircle className="w-8 h-8" />}
             title="Messages"
             description="Chat with friends"
             href="/messages"
-            color="purple"
+            color="blue"
           />
           <QuickActionCard
             icon={<Users className="w-8 h-8" />}
