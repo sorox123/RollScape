@@ -13,6 +13,9 @@ from models.character_effect import CharacterEffect, EffectType
 from models.session_log import SessionLog
 from models.generated_content import GeneratedImage, GeneratedMap, ImageType, MapType
 from models.spell import Spell, CharacterSpell, SpellSchool, SpellSource
+from models.content_generator import GeneratedContent, ContentLike, ContentType, ContentVisibility
+from models.lore import LoreEntry, LoreCategory
+from models.marketplace import World, WorldLike, WorldVisibility, DiceTexture, DiceTexturePurchase, DiceTextureLike
 
 # Export all models
 __all__ = [
@@ -40,4 +43,16 @@ __all__ = [
     "CharacterSpell",
     "SpellSchool",
     "SpellSource",
+    "GeneratedContent",
+    "ContentLike",
+    "ContentType",
+    "ContentVisibility",
+    "LoreEntry",
+    "LoreCategory",
+    "World",
+    "WorldLike",
+    "WorldVisibility",
+    "DiceTexture",
+    "DiceTexturePurchase",
+    "DiceTextureLike",
 ]

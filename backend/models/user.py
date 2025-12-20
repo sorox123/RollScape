@@ -72,6 +72,9 @@ class User(Base):
     
     # Relationships
     created_spells = relationship("Spell", back_populates="created_by", foreign_keys="Spell.created_by_user_id")
+    generated_content = relationship("GeneratedContent", back_populates="creator", foreign_keys="GeneratedContent.created_by_user_id")
+    worlds = relationship("World", back_populates="creator")
+    dice_textures = relationship("DiceTexture", back_populates="creator")
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

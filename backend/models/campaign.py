@@ -39,6 +39,7 @@ class Campaign(Base):
     
     # Ownership
     dm_user_id = Column(GUID(), ForeignKey("users.id"), nullable=False)
+    world_id = Column(GUID(), ForeignKey("worlds.id"), nullable=True, index=True)  # Link to world marketplace
     
     # Status
     status = Column(
@@ -84,6 +85,9 @@ class Campaign(Base):
     # Relationships
     members = relationship("CampaignMember", back_populates="campaign", cascade="all, delete-orphan")
     spells = relationship("Spell", back_populates="campaign", cascade="all, delete-orphan")
+    generated_content = relationship("GeneratedContent", back_populates="campaign")
+    lore_entries = relationship("LoreEntry", back_populates="campaign")
+    world = relationship("World", back_populates="campaigns", uselist=False)
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

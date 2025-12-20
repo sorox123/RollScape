@@ -36,7 +36,7 @@ class StripeService:
             self.is_mock = False
         else:
             self.is_mock = True
-            print("⚠️ Stripe API key not found. Running in mock mode.")
+            print("WARNING: Stripe API key not found. Running in mock mode.")
     
     # ========================================================================
     # CUSTOMER MANAGEMENT
