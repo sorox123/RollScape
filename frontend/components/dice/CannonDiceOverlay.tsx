@@ -77,6 +77,151 @@ function createD10PhysicsShape(radius: number): CANNON.ConvexPolyhedron {
   return new CANNON.ConvexPolyhedron({ vertices, faces });
 }
 
+/**
+ * Creates a CANNON.ConvexPolyhedron physics shape for an icosahedron (d20)
+ * This provides proper edge and corner collision instead of rolling like a sphere
+ * Also computes and stores face normals for detection
+ */
+function createD20PhysicsShape(radius: number): CANNON.ConvexPolyhedron {
+  // Golden ratio
+  const phi = (1 + Math.sqrt(5)) / 2;
+  const a = radius / Math.sqrt(phi * Math.sqrt(5));
+  
+  // 12 vertices of a regular icosahedron
+  const vertices: CANNON.Vec3[] = [
+    // Rectangle in XY plane
+    new CANNON.Vec3(-a, phi * a, 0),
+    new CANNON.Vec3(a, phi * a, 0),
+    new CANNON.Vec3(-a, -phi * a, 0),
+    new CANNON.Vec3(a, -phi * a, 0),
+    
+    // Rectangle in YZ plane
+    new CANNON.Vec3(0, -a, phi * a),
+    new CANNON.Vec3(0, a, phi * a),
+    new CANNON.Vec3(0, -a, -phi * a),
+    new CANNON.Vec3(0, a, -phi * a),
+    
+    // Rectangle in XZ plane
+    new CANNON.Vec3(phi * a, 0, -a),
+    new CANNON.Vec3(phi * a, 0, a),
+    new CANNON.Vec3(-phi * a, 0, -a),
+    new CANNON.Vec3(-phi * a, 0, a)
+  ];
+  
+  // 20 triangular faces (vertex indices must be in counter-clockwise order)
+  const faces: number[][] = [
+    // 5 faces around vertex 0
+    [0, 11, 5],
+    [0, 5, 1],
+    [0, 1, 7],
+    [0, 7, 10],
+    [0, 10, 11],
+    
+    // 5 adjacent faces
+    [1, 5, 9],
+    [5, 11, 4],
+    [11, 10, 2],
+    [10, 7, 6],
+    [7, 1, 8],
+    
+    // 5 faces around vertex 3
+    [3, 9, 4],
+    [3, 4, 2],
+    [3, 2, 6],
+    [3, 6, 8],
+    [3, 8, 9],
+    
+    // 5 adjacent faces
+    [4, 9, 5],
+    [2, 4, 11],
+    [6, 2, 10],
+    [8, 6, 7],
+    [9, 8, 1]
+  ];
+  
+  // Compute face normals from physics shape geometry
+  const faceNormals: CANNON.Vec3[] = [];
+  for (const face of faces) {
+    const v0 = vertices[face[0]];
+    const v1 = vertices[face[1]];
+    const v2 = vertices[face[2]];
+    
+    // Compute edge vectors
+    const edge1 = v1.vsub(v0);
+    const edge2 = v2.vsub(v0);
+    
+    // Cross product gives normal
+    const normal = edge1.cross(edge2);
+    normal.normalize();
+    
+    faceNormals.push(normal);
+  }
+  
+  // Store normals globally for face detection (matching physics shape face order)
+  (globalThis as any).__d20PhysicsFaceNormals = faceNormals;
+  console.log(`📐 D20 physics face normals computed: ${faceNormals.length} faces`);
+  
+  // We'll create the mapping to visual face numbers later once geometry is created
+  
+  return new CANNON.ConvexPolyhedron({ vertices, faces });
+}
+
+/**
+ * Maps physics face indices to visual face numbers by comparing normals
+ * Call this after both physics shape and visual geometry are created
+ */
+function createD20PhysicsToVisualMapping(): void {
+  const physicsNormals = (globalThis as any).__d20PhysicsFaceNormals as CANNON.Vec3[];
+  const visualNormals = (globalThis as any).__d20TriangleNormals as THREE.Vector3[];
+  const visualMapping = (globalThis as any).__d20FaceToNumberMap as Map<number, number>;
+  
+  if (!physicsNormals || !visualNormals || !visualMapping) {
+    console.error('Cannot create d20 physics-to-visual mapping - missing data');
+    return;
+  }
+  
+  // For each physics face, find the closest matching visual triangle
+  const physicsToVisualMap = new Map<number, number>();
+  
+  console.log(`🔍 Creating D20 Physics-to-Visual Mapping:`);
+  for (let physicsIdx = 0; physicsIdx < physicsNormals.length; physicsIdx++) {
+    const physicsNormal = physicsNormals[physicsIdx];
+    let bestMatch = 0;
+    let bestDot = -1;
+    
+    for (let visualIdx = 0; visualIdx < visualNormals.length; visualIdx++) {
+      const visualNormal = visualNormals[visualIdx];
+      const dot = physicsNormal.x * visualNormal.x + 
+                  physicsNormal.y * visualNormal.y + 
+                  physicsNormal.z * visualNormal.z;
+      
+      if (dot > bestDot) {
+        bestDot = dot;
+        bestMatch = visualIdx;
+      }
+    }
+    
+    // Map physics face to the visual face number
+    const visualFaceNumber = visualMapping.get(bestMatch) ?? (bestMatch + 1);
+    physicsToVisualMap.set(physicsIdx, visualFaceNumber);
+    
+    // Log first 5 mappings to verify
+    if (physicsIdx < 5) {
+      console.log(`  Physics[${physicsIdx}] normal(${physicsNormal.x.toFixed(3)}, ${physicsNormal.y.toFixed(3)}, ${physicsNormal.z.toFixed(3)}) → Visual triangle[${bestMatch}] → Face[${visualFaceNumber}] (dot=${bestDot.toFixed(4)})`);
+    }
+  }
+  
+  (globalThis as any).__d20PhysicsToVisualMap = physicsToVisualMap;
+  console.log(`📊 D20 physics-to-visual mapping created (${physicsToVisualMap.size} faces)`);
+  
+  // Log the complete mapping for debugging
+  console.log(`📋 Complete D20 mapping table:`);
+  for (let i = 0; i < 20; i++) {
+    const visualNum = physicsToVisualMap.get(i);
+    console.log(`  Physics[${i}] → Visual[${visualNum}]`);
+  }
+}
+
 interface DieResult {
   die_type: string;
   value: number;
@@ -116,8 +261,15 @@ interface DicePhysicsState {
   settled: boolean;
   physicsResult?: number;
   dieType: string;
+  expectedValue?: number; // The value backend says should show (TRUTH)
   settleStartTime?: number;
   hasBeenNudged?: boolean; // Track if we've nudged this die to prevent edge balancing
+  previousPosition?: THREE.Vector3;
+  previousQuaternion?: THREE.Quaternion;
+  stillFrameCount?: number;
+  isSettling?: boolean; // Flag: settling phase triggered, committed to target face
+  targetFaceNormal?: CANNON.Vec3; // The face normal we're forcing to ground
+  targetFaceIndex?: number; // Which face we're settling on
 }
 
 export default function CannonDiceOverlay({ 
@@ -181,18 +333,11 @@ export default function CannonDiceOverlay({
     scene.background = null;
     sceneRef.current = scene;
 
-    // Camera
+    // Camera - top-down view looking straight down
     const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-    if (settings.cameraAngle === 'top') {
-      camera.position.set(0, 30, 0);
-      camera.lookAt(0, 0, 0);
-    } else if (settings.cameraAngle === 'side') {
-      camera.position.set(0, 15, 20);
-      camera.lookAt(0, 0, 0);
-    } else {
-      camera.position.set(0, 20, 15);
-      camera.lookAt(0, 0, 0);
-    }
+    camera.position.set(0, 25, 0); // Directly above the scene
+    camera.lookAt(0, 0, 0); // Looking straight down at origin
+    camera.up.set(0, 0, -1); // Set "up" direction so dice appear correctly oriented
     cameraRef.current = camera;
 
     // Renderer
@@ -204,10 +349,12 @@ export default function CannonDiceOverlay({
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Lighting
-    const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+    // Lighting - Enhanced for better face visibility
+    const ambient = new THREE.AmbientLight(0xffffff, 0.25); // Reduced ambient for more contrast
     scene.add(ambient);
-    const directional = new THREE.DirectionalLight(0xffffff, 0.8);
+    
+    // Main directional light from side for general illumination
+    const directional = new THREE.DirectionalLight(0xffffff, 0.8); // Increased intensity
     directional.position.set(5, 10, 7);
     directional.castShadow = settings.shadowQuality !== 'low';
     if (directional.shadow) {
@@ -215,6 +362,18 @@ export default function CannonDiceOverlay({
       directional.shadow.mapSize.height = settings.shadowQuality === 'high' ? 2048 : 1024;
     }
     scene.add(directional);
+    
+    // Strong top-down light to clearly highlight the top face
+    const topLight = new THREE.DirectionalLight(0xffffff, 1.2); // Increased intensity
+    topLight.position.set(0, 20, 0); // Directly above
+    topLight.target.position.set(0, 0, 0); // Pointing straight down
+    scene.add(topLight);
+    scene.add(topLight.target);
+    
+    // Add a subtle rim light from below for edge definition
+    const rimLight = new THREE.DirectionalLight(0x4488ff, 0.3);
+    rimLight.position.set(0, -5, 0);
+    scene.add(rimLight);
 
     // Ground plane (visual) - match boundary size
     const boundaryWidth = window.innerWidth / 50; // Scale to viewport
@@ -325,6 +484,47 @@ export default function CannonDiceOverlay({
     ceiling.quaternion.setFromEuler(Math.PI / 2, 0, 0);
     world.addBody(ceiling);
 
+    // Add rounded corners using cylinders to prevent dice from getting stuck
+    const cornerRadius = 2.0; // Radius of corner rounding
+    const cornerHeight = wallHeight * 2; // Tall enough to cover the play area
+    
+    // Bottom-left corner
+    const blCorner = new CANNON.Body({
+      mass: 0,
+      shape: new CANNON.Cylinder(cornerRadius, cornerRadius, cornerHeight, 16),
+      material: wallMaterial
+    });
+    blCorner.position.set(-halfWidth, cornerHeight / 2, -halfDepth);
+    blCorner.quaternion.setFromEuler(0, 0, 0);
+    world.addBody(blCorner);
+    
+    // Bottom-right corner
+    const brCorner = new CANNON.Body({
+      mass: 0,
+      shape: new CANNON.Cylinder(cornerRadius, cornerRadius, cornerHeight, 16),
+      material: wallMaterial
+    });
+    brCorner.position.set(halfWidth, cornerHeight / 2, -halfDepth);
+    world.addBody(brCorner);
+    
+    // Top-left corner
+    const tlCorner = new CANNON.Body({
+      mass: 0,
+      shape: new CANNON.Cylinder(cornerRadius, cornerRadius, cornerHeight, 16),
+      material: wallMaterial
+    });
+    tlCorner.position.set(-halfWidth, cornerHeight / 2, halfDepth);
+    world.addBody(tlCorner);
+    
+    // Top-right corner
+    const trCorner = new CANNON.Body({
+      mass: 0,
+      shape: new CANNON.Cylinder(cornerRadius, cornerRadius, cornerHeight, 16),
+      material: wallMaterial
+    });
+    trCorner.position.set(halfWidth, cornerHeight / 2, halfDepth);
+    world.addBody(trCorner);
+
     // Create dice
     rollData.dice_results.forEach((dieResult, index) => {
       createDie(scene, world, dieResult, index, diceMaterial);
@@ -407,7 +607,8 @@ export default function CannonDiceOverlay({
       case 20: // Icosahedron
         dieSize = 4.0; // Larger for better readability
         geometry = new THREE.IcosahedronGeometry(dieSize);
-        shape = new CANNON.Sphere(dieSize * 0.8); // Approximate with sphere
+        // Use proper convex hull for d20 physics (edges and corners will interact with ground)
+        shape = createD20PhysicsShape(dieSize);
         break;
       case 100: // Percentile (d10 with 00-90)
         geometry = new THREE.IcosahedronGeometry(dieSize, 0);
@@ -421,6 +622,11 @@ export default function CannonDiceOverlay({
     // Apply UV mapping for texture atlas
     applyDiceUVMapping(geometry, numFaces);
 
+    // For d20, create physics-to-visual mapping after geometry is ready
+    if (numFaces === 20) {
+      createD20PhysicsToVisualMapping();
+    }
+
     const material = createDiceMaterials(dieResult);
     const mesh = new THREE.Mesh(geometry, material);
     mesh.castShadow = settings.shadowQuality !== 'low';
@@ -428,15 +634,22 @@ export default function CannonDiceOverlay({
     scene.add(mesh);
 
     // Cannon.js body
-    // D10 uses convex hull physics - needs moderate damping to settle on flat faces
-    const damping = numFaces === 10 ? 0.5 : 0.4;
-    const mass = numFaces === 10 ? 0.050 : 0.045; // Standard mass for convex hull
+    // Mass varies by die type to simulate solid cast plastic
+    let mass: number;
+    if (numFaces === 20) {
+      mass = 0.60; // D20 is larger (dieSize=4.0), so heavier
+    } else if (numFaces === 10) {
+      mass = 0.50; // D10 medium mass
+    } else {
+      mass = 0.45; // Standard dice
+    }
+    const baseDamping = numFaces === 10 ? 0.3 : 0.25; // Low damping for airborne momentum
     const body = new CANNON.Body({
       mass: mass,
       shape: shape,
       material: physicsMaterial,
-      linearDamping: damping,
-      angularDamping: damping
+      linearDamping: baseDamping,
+      angularDamping: baseDamping
     });
 
     if (!settings.animateRolls) {
@@ -462,7 +675,7 @@ export default function CannonDiceOverlay({
       // Horizontal-focused velocity - fast forward, minimal upward
       body.velocity.set(
         (Math.random() - 0.5) * 12 * settings.throwForce, // Strong horizontal
-        (10 + Math.random() * 8) * settings.throwForce, // Higher upward
+        (8 + Math.random() * 7) * settings.throwForce, // Moderate upward
         (60 + Math.random() * 9) * settings.throwForce // Very fast forward velocity
       );
       
@@ -483,7 +696,9 @@ export default function CannonDiceOverlay({
       mesh: mesh,
       body: body,
       settled: !settings.animateRolls,
-      dieType: dieResult.die_type
+      dieType: dieResult.die_type,
+      expectedValue: dieResult.value, // Store the CORRECT value from backend
+      physicsResult: settings.animateRolls ? undefined : dieResult.value // In instant mode, use backend value directly
     });
   };
 
@@ -558,12 +773,12 @@ export default function CannonDiceOverlay({
       let faceNormals: CANNON.Vec3[] = [];
       
       if (numFaces === 20) {
-        // For d20: Use triangle normals in geometry order (not sorted!)
-        const triangleNormals = (globalThis as any).__d20TriangleNormals as THREE.Vector3[];
-        if (triangleNormals && triangleNormals.length === 20) {
-          faceNormals = triangleNormals.map(n => new CANNON.Vec3(n.x, n.y, n.z));
+        // For d20: Use physics shape normals (computed from CANNON vertices/faces)
+        const physicsNormals = (globalThis as any).__d20PhysicsFaceNormals as CANNON.Vec3[];
+        if (physicsNormals && physicsNormals.length === 20) {
+          faceNormals = physicsNormals;
         } else {
-          console.error('D20 triangle normals not found! Detection will be incorrect.');
+          console.error('D20 physics normals not found! Detection will be incorrect.');
           return 1;
         }
       } else {
@@ -600,8 +815,46 @@ export default function CannonDiceOverlay({
         }
       });
       
-      // Look up which face number this face was assigned
-      const mapKey = numFaces === 10 ? '__d10KiteToFaceMap' : '__d20FaceToNumberMap';
+      // For d20: Map physics face index to visual face number, then correct to actual d20 number
+      if (numFaces === 20) {
+        const physicsToVisualMap = (globalThis as any).__d20PhysicsToVisualMap as Map<number, number>;
+        const detectedFace = physicsToVisualMap?.get(closestFace) ?? (closestFace + 1);
+        
+        // D20 Correction Table: Maps detected visual face to actual d20 number
+        // This must be a 1:1 bijection - each visual face (1-20) maps to exactly one unique actual number (1-20)
+        // Based on user testing, but needs verification for all 20 faces
+        const d20CorrectionMap: Record<number, number> = {
+          1: 1,    // Detected 1 → Actual 1 (needs testing)
+          2: 2,    // Detected 2 → Actual 2 (needs testing)
+          3: 3,    // Detected 3 → Actual 3 ✓
+          4: 4,    // Detected 4 → Actual 4 (needs testing)
+          5: 5,    // Detected 5 → Actual 5 (needs testing)
+          6: 6,    // Detected 6 → Actual 6 ✓
+          7: 7,    // Detected 7 → Actual 7 ✓
+          8: 8,    // Detected 8 → Actual 8 (needs testing)
+          9: 9,    // Detected 9 → Actual 9 (needs testing)
+          10: 10,  // Detected 10 → Actual 10 (needs testing)
+          11: 11,  // Detected 11 → Actual 11 ✓
+          12: 12,  // Detected 12 → Actual 12 (needs testing)
+          13: 13,  // Detected 13 → Actual 13 (needs testing)
+          14: 14,  // Detected 14 → Actual 14 (needs testing)
+          15: 15,  // Detected 15 → Actual 15 (needs testing)
+          16: 16,  // Detected 16 → Actual 16 (identity mapping)
+          17: 17,  // Detected 17 → Actual 17 (needs testing)
+          18: 18,  // Detected 18 → Actual 18 (needs testing)
+          19: 19,  // Detected 19 → Actual 19 (needs testing)
+          20: 20,  // Detected 20 → Actual 20 (needs testing)
+        };
+        
+        const actualNumber = d20CorrectionMap[detectedFace] ?? detectedFace;
+        
+        console.log(`🎲 D20: Physics[${closestFace}] → Visual[${detectedFace}] → Actual[${actualNumber}]`);
+        
+        return actualNumber;
+      }
+      
+      // For d10: Look up face number from kite mapping
+      const mapKey = '__d10KiteToFaceMap';
       const faceToNumberMap = (globalThis as any)[mapKey] as Map<number, number>;
       const faceNumber = faceToNumberMap?.get(closestFace) ?? (closestFace + 1);
       
@@ -868,164 +1121,188 @@ export default function CannonDiceOverlay({
         dicePhysicsRef.current.forEach((state, key) => {
           const { mesh, body, settled } = state;
           
-          // Update mesh position and rotation from physics
-          mesh.position.copy(body.position as any);
-          mesh.quaternion.copy(body.quaternion as any);
-          
-          // Check if settled
+          // Update mesh position and rotation from physics (always update until settled)
           if (!settled) {
-            const speed = body.velocity.length();
-            const angSpeed = body.angularVelocity.length();
-            // Use proven thresholds: very low speed (.01) and tilt (.005) from dice-box
-            const speedThreshold = 0.01;
-            const angSpeedThreshold = 0.005;
-            // Check if die has low energy
-            const isLowEnergy = speed < speedThreshold && angSpeed < angSpeedThreshold;
+            mesh.position.copy(body.position as any);
+            mesh.quaternion.copy(body.quaternion as any);
             
-            // Log settling status every 60 frames (~1 second) for d10 and d20
-            if ((state.dieType === 'd10' || state.dieType === 'd20') && Math.floor(elapsedTime * 60) % 60 === 0) {
-              console.log(`${state.dieType.toUpperCase()} Settling Check @ ${elapsedTime.toFixed(1)}s: speed=${speed.toFixed(4)}, angSpeed=${angSpeed.toFixed(4)}, y=${body.position.y.toFixed(2)}, stillTime=${state.settleStartTime ? ((currentTime - state.settleStartTime) / 1000).toFixed(2) : '0.00'}s`);
+            // Apply VERY strong damping when die is on the ground (dramatic surface friction)
+            const isOnGround = body.position.y < 1.5; // Die is touching or near surface
+            if (isOnGround && !state.isSettling) {
+              // Aggressive damping on ground contact - lose 30-35% speed per frame
+              body.velocity.scale(0.65, body.velocity);
+              body.angularVelocity.scale(0.70, body.angularVelocity);
             }
             
-            // Initialize settle start time if just reached low energy state
-            if (isLowEnergy && !state.settleStartTime) {
-              state.settleStartTime = currentTime;
-              if (state.dieType === 'd10' || state.dieType === 'd20') {
-                console.log(`${state.dieType.toUpperCase()} reached low energy state at ${elapsedTime.toFixed(2)}s`);
-              }
-            }
-            
-            // Reset settle timer if die starts moving again
-            if (!isLowEnergy && state.settleStartTime) {
-              if (state.dieType === 'd10' || state.dieType === 'd20') {
-                console.log(`${state.dieType.toUpperCase()} started moving again at ${elapsedTime.toFixed(2)}s - resetting timer`);
-              }
-              state.settleStartTime = undefined;
-            }
-            
-            // Use shorter settle time like dice-box
-            const settleTime = 0.15; // 150ms of stillness
-            const hasBeenStillLongEnough = state.settleStartTime && (currentTime - state.settleStartTime) / 1000 > settleTime;
-            
-            // For D20 and D10: Verify die is resting stably (not an edge or vertex)
-            // CRITICAL: Must NEVER settle on edge or vertex - apply physics nudge if needed
-            let isStablePosition = true;
-            let needsNudge = false;
-            if ((state.dieType === 'd20' || state.dieType === 'd10') && isLowEnergy) {
-              const upVector = new CANNON.Vec3(0, 1, 0);
-              const triangleNormals = state.dieType === 'd20' 
-                ? (globalThis as any).__d20TriangleNormals as THREE.Vector3[]
-                : null;
+            // If settling, apply physics forces to roll die to flush position
+            if (state.isSettling && state.targetFaceNormal) {
+              const downVector = new CANNON.Vec3(0, -1, 0);
+              const currentNormal = body.quaternion.vmult(state.targetFaceNormal);
+              const alignment = currentNormal.dot(downVector);
               
-              if (state.dieType === 'd20' && triangleNormals && triangleNormals.length === 20) {
-                // D20: Check triangle normals - find closest face to UP
-                let smallestAngle = Math.PI;
-                let secondSmallestAngle = Math.PI;
-                triangleNormals.forEach((normal) => {
-                  const cannonNormal = new CANNON.Vec3(normal.x, normal.y, normal.z);
-                  const rotatedNormal = body.quaternion.vmult(cannonNormal);
-                  const angle = Math.acos(Math.max(-1, Math.min(1, rotatedNormal.dot(upVector))));
-                  if (angle < smallestAngle) {
-                    secondSmallestAngle = smallestAngle;
-                    smallestAngle = angle;
-                  } else if (angle < secondSmallestAngle) {
-                    secondSmallestAngle = angle;
+              const currentSpeed = body.velocity.length();
+              const currentAngSpeed = body.angularVelocity.length();
+              
+              // Check if face is flush AND die is completely stopped
+              // STRICT thresholds - must be nearly motionless
+              if (alignment > 0.99 && currentSpeed < 0.002 && currentAngSpeed < 0.002) {
+                // FREEZE everything - die is fully stopped
+                body.velocity.set(0, 0, 0);
+                body.angularVelocity.set(0, 0, 0);
+                body.mass = 0;
+                body.sleepState = 2;
+                
+                state.settled = true;
+                // Read the actual face that's pointing up from physics
+                state.physicsResult = getTopFaceValue(body.quaternion, state.dieType);
+                console.log(`✓ Die ${key} (${state.dieType}) SETTLED on: ${state.physicsResult} (expected: ${state.expectedValue}, alignment: ${alignment.toFixed(4)}, speed: ${currentSpeed.toFixed(6)}, angSpeed: ${currentAngSpeed.toFixed(6)})`);
+                playSound(300, 0.05, 0.2);
+              } else {
+                // Only apply corrective torque when die is moving slowly
+                // This prevents fighting against the die's natural momentum
+                if (currentSpeed < 0.3 && currentAngSpeed < 0.2) {
+                  // Calculate rotation axis (perpendicular to current and target)
+                  const rotationAxis = new CANNON.Vec3();
+                  currentNormal.cross(downVector, rotationAxis);
+                  
+                  if (rotationAxis.length() > 0.001) {
+                    rotationAxis.normalize();
+                    
+                    // Calculate angle to rotate (how far from flush)
+                    const angle = Math.acos(Math.max(-1, Math.min(1, alignment)));
+                    
+                    // Moderate torque - strong enough to settle but subtle enough to look natural
+                    const torqueMagnitude = angle * 15.0;
+                    const torque = new CANNON.Vec3(
+                      rotationAxis.x * torqueMagnitude,
+                      rotationAxis.y * torqueMagnitude,
+                      rotationAxis.z * torqueMagnitude
+                    );
+                    
+                    // Apply torque
+                    body.angularVelocity.vadd(torque.scale(1/60), body.angularVelocity);
+                    
+                    console.log(`🔄 Settling d20: alignment=${alignment.toFixed(4)}, angle=${(angle * 180/Math.PI).toFixed(1)}°, speed=${currentSpeed.toFixed(6)}, angSpeed=${currentAngSpeed.toFixed(6)}`);
+                  }
+                }
+                
+                // Always apply damping during settling phase
+                body.velocity.scale(0.94, body.velocity);
+                body.angularVelocity.scale(0.95, body.angularVelocity);
+              }
+            }
+            
+            // Check physics velocity - when die slows down enough, TRIGGER SETTLING
+            if (!state.isSettling && !settled) {
+              const speed = body.velocity.length();
+              const angSpeed = body.angularVelocity.length();
+              
+              // Thresholds to trigger settling phase - only when die is quite slow
+              const speedThreshold = 0.4;  // Slow rolling
+              const angSpeedThreshold = 0.3; // Slow rotation
+              
+              if (speed < speedThreshold && angSpeed < angSpeedThreshold && elapsedTime > 0.5) {
+                // Find which face is closest to the GROUND (pointing DOWN)
+                const downVector = new CANNON.Vec3(0, -1, 0); // Surface normal (straight down)
+                let faceNormals: CANNON.Vec3[] = [];
+                
+                if (state.dieType === 'd20') {
+                  // Use physics shape normals for d20
+                  const physicsNormals = (globalThis as any).__d20PhysicsFaceNormals as CANNON.Vec3[];
+                  if (physicsNormals && physicsNormals.length === 20) {
+                    faceNormals = physicsNormals;
+                    console.log(`📐 D20 physics face normals loaded: ${faceNormals.length} faces`);
+                  } else {
+                    console.error('❌ D20 physics normals NOT found in globalThis');
+                  }
+                } else if (state.dieType === 'd10') {
+                  const firstDie = Array.from(dicePhysicsRef.current.values())[0];
+                  if (firstDie?.mesh) {
+                    const geometry = firstDie.mesh.geometry as THREE.BufferGeometry;
+                    const normalAttr = geometry.getAttribute('normal');
+                    if (normalAttr) {
+                      const verticesPerKite = 6;
+                      for (let kiteIndex = 0; kiteIndex < 10; kiteIndex++) {
+                        const vertexIndex = kiteIndex * verticesPerKite;
+                        faceNormals.push(new CANNON.Vec3(
+                          normalAttr.getX(vertexIndex),
+                          normalAttr.getY(vertexIndex),
+                          normalAttr.getZ(vertexIndex)
+                        ));
+                      }
+                    }
+                  }
+                } else {
+                  faceNormals = generateFaceNormals(parseInt(state.dieType.substring(1)));
+                }
+                
+                if (faceNormals.length === 0) {
+                  console.error(`❌ No face normals found for ${state.dieType}!`);
+                  return;
+                }
+                
+                // Predict future orientation based on current velocities
+                // Use longer prediction to heavily favor momentum direction
+                const angVel = body.angularVelocity;
+                const angSpeed = angVel.length();
+                const linearSpeed = body.velocity.length();
+                
+                // Adaptive prediction time: faster movement = longer prediction
+                const basePrediction = 0.4;
+                const speedFactor = Math.min(angSpeed / 0.2, 2.0); // Scale with angular speed
+                const predictionTime = basePrediction * (1 + speedFactor);
+                
+                const predictedQuat = body.quaternion.clone();
+                
+                // Apply angular velocity to predict rotation
+                if (angSpeed > 0.001) {
+                  const axis = angVel.unit();
+                  const angle = angSpeed * predictionTime;
+                  const rotQuat = new CANNON.Quaternion();
+                  rotQuat.setFromAxisAngle(axis, angle);
+                  predictedQuat.mult(rotQuat, predictedQuat);
+                  predictedQuat.normalize();
+                }
+                
+                // Find face most aligned with DOWN using PREDICTED orientation
+                // This ensures we settle in the direction of momentum, not against it
+                let closestFaceIndex = 0;
+                let bestAlignment = -1;
+                const alignments: number[] = [];
+                
+                faceNormals.forEach((normal, idx) => {
+                  const rotatedNormal = predictedQuat.vmult(normal);
+                  const alignment = rotatedNormal.dot(downVector);
+                  alignments.push(alignment);
+                  if (alignment > bestAlignment) {
+                    bestAlignment = alignment;
+                    closestFaceIndex = idx;
                   }
                 });
                 
-                // STRICT angle check: Face must be pointing UP within 30 degrees
-                // 30 degrees = 0.524 radians - tight enough to prevent edge balancing
-                const maxStableAngle = 0.524;
+                // Log detection with prediction info
+                const sortedAlignments = alignments.map((a, i) => ({ face: i, alignment: a }))
+                  .sort((a, b) => b.alignment - a.alignment);
+                console.log(`🎯 Face detection for ${state.dieType}:`, 
+                  `Prediction ${predictionTime.toFixed(2)}s ahead (angSpeed: ${angSpeed.toFixed(3)}, linSpeed: ${linearSpeed.toFixed(3)})`,
+                  `→ Target face ${closestFaceIndex} (alignment: ${bestAlignment.toFixed(3)})`);
                 
-                // Additional check: If two faces are nearly equal, we're on an edge
-                const angleDifference = secondSmallestAngle - smallestAngle;
-                const minAngleDifference = 0.174; // ~10 degrees - faces should be clearly separated
+                // COMMIT to settling this face - store it and don't re-evaluate
+                state.isSettling = true;
+                state.targetFaceNormal = faceNormals[closestFaceIndex];
+                state.targetFaceIndex = closestFaceIndex;
                 
-                isStablePosition = smallestAngle < maxStableAngle && angleDifference > minAngleDifference;
-                needsNudge = !isStablePosition && hasBeenStillLongEnough;
+                // Re-enable physics so we can apply forces
+                body.mass = 0.60; // Restore d20 mass
+                body.sleepState = 0;
                 
-                if (!isStablePosition && Math.floor(elapsedTime * 60) % 60 === 0) {
-                  console.log(`D20 unstable: best=${(smallestAngle * 180 / Math.PI).toFixed(1)}°, 2nd=${(secondSmallestAngle * 180 / Math.PI).toFixed(1)}°, diff=${(angleDifference * 180 / Math.PI).toFixed(1)}° (need < ${(maxStableAngle * 180 / Math.PI).toFixed(1)}° and diff > ${(minAngleDifference * 180 / Math.PI).toFixed(1)}°)`);
-                }
-              } else if (state.dieType === 'd10') {
-                // D10: Check kite normals from geometry
-                const firstDie = Array.from(dicePhysicsRef.current.values())[0];
-                if (firstDie?.mesh) {
-                  const geometry = firstDie.mesh.geometry as THREE.BufferGeometry;
-                  const normalAttr = geometry.getAttribute('normal');
-                  if (normalAttr) {
-                    const kiteNormals: CANNON.Vec3[] = [];
-                    const verticesPerKite = 6;
-                    for (let kiteIndex = 0; kiteIndex < 10; kiteIndex++) {
-                      const vertexIndex = kiteIndex * verticesPerKite;
-                      const nx = normalAttr.getX(vertexIndex);
-                      const ny = normalAttr.getY(vertexIndex);
-                      const nz = normalAttr.getZ(vertexIndex);
-                      kiteNormals.push(new CANNON.Vec3(nx, ny, nz));
-                    }
-                    
-                    let smallestAngle = Math.PI;
-                    let secondSmallestAngle = Math.PI;
-                    kiteNormals.forEach((normal) => {
-                      const rotatedNormal = body.quaternion.vmult(normal);
-                      const angle = Math.acos(Math.max(-1, Math.min(1, rotatedNormal.dot(upVector))));
-                      if (angle < smallestAngle) {
-                        secondSmallestAngle = smallestAngle;
-                        smallestAngle = angle;
-                      } else if (angle < secondSmallestAngle) {
-                        secondSmallestAngle = angle;
-                      }
-                    });
-                    
-                    // D10 strict check: 30 degrees for main face
-                    const maxStableAngle = 0.524;
-                    const angleDifference = secondSmallestAngle - smallestAngle;
-                    const minAngleDifference = 0.174; // ~10 degrees
-                    
-                    isStablePosition = smallestAngle < maxStableAngle && angleDifference > minAngleDifference;
-                    needsNudge = !isStablePosition && hasBeenStillLongEnough;
-                    
-                    if (!isStablePosition && Math.floor(elapsedTime * 60) % 60 === 0) {
-                      console.log(`D10 unstable: best=${(smallestAngle * 180 / Math.PI).toFixed(1)}°, 2nd=${(secondSmallestAngle * 180 / Math.PI).toFixed(1)}°, diff=${(angleDifference * 180 / Math.PI).toFixed(1)}°`);
-                    }
-                  }
-                }
-              }
-              
-              // If die is balancing on edge/vertex, give it a gentle nudge to topple onto a face
-              if (needsNudge && !state.hasBeenNudged) {
-                console.log(`${state.dieType.toUpperCase()} balancing on edge/vertex - applying gentle nudge`);
-                // Apply small random impulse to break the balance
-                const nudgeForce = 0.02;
-                const randomX = (Math.random() - 0.5) * nudgeForce;
-                const randomZ = (Math.random() - 0.5) * nudgeForce;
-                body.velocity.set(randomX, 0, randomZ);
-                body.angularVelocity.set(
-                  (Math.random() - 0.5) * nudgeForce * 2,
-                  (Math.random() - 0.5) * nudgeForce * 2,
-                  (Math.random() - 0.5) * nudgeForce * 2
-                );
-                state.hasBeenNudged = true;
-                state.settleStartTime = undefined; // Reset settle timer after nudge
+                console.log(`🎯 Triggering settlement for ${state.dieType}: face ${closestFaceIndex}, alignment=${bestAlignment.toFixed(3)}`);
               }
             }
-            
-            if (isLowEnergy && elapsedTime > 0.8 && hasBeenStillLongEnough && isStablePosition) {
-              // Die has settled and been still long enough
-              state.settled = true;
-              state.physicsResult = getTopFaceValue(body.quaternion, state.dieType);
-              
-              // COMPLETELY FREEZE the die - inspired by dice-box approach
-              body.mass = 0; // Set mass to 0 to prevent any further physics interaction
-              body.velocity.set(0, 0, 0);
-              body.angularVelocity.set(0, 0, 0);
-              body.sleepState = 2; // SLEEPING state in CANNON.js
-              
-              console.log(`✓ Die ${key} (${state.dieType}) PROPERLY SETTLED on: ${state.physicsResult} (still for ${((currentTime - (state.settleStartTime || currentTime)) / 1000).toFixed(2)}s)`);
-              playSound(300, 0.05, 0.2);
-            } else {
-              allSettled = false;
-            }
+          }
+          
+          if (!settled) {
+            allSettled = false;
           }
         });
         

@@ -91,16 +91,9 @@ export function createDiceTextureAtlas(
       // For d10: 0-9 (standard pentagonal trapezohedron numbering)
       faceNumber = `${i}`;
     } else if (numFaces === 20) {
-      // For d20: Use sorted face group index directly (no remapping)
-      // Faces are sorted by Y (descending) then angle (ascending)
-      // Opposite faces: index i and index (i + 10) will have numbers that sum to 21
-      // Top hemisphere (indices 0-9): display 1-10
-      // Bottom hemisphere (indices 10-19): display 20-11 (reverse order)
-      if (i < 10) {
-        faceNumber = `${i + 1}`; // Indices 0-9 → display 1-10
-      } else {
-        faceNumber = `${20 - (i - 10)}`; // Indices 10-19 → display 20-11
-      }
+      // For d20: Sequential numbering (1-20)
+      // The correction table will map visual triangles to proper d20 numbers
+      faceNumber = `${i + 1}`;
     } else {
       // Regular numbering: 1, 2, 3, ...
       faceNumber = `${i + 1}`;
@@ -762,8 +755,8 @@ function applyPolyhedronUVMapping(
   faceGroups.forEach((group, groupIndex) => {
     // Apply UVs to all triangles in this face group
     group.triangleIndices.forEach((triangleIndex, triIndexInGroup) => {
-      // For D20: Use triangle index directly as face number
-      // For other dice: Use face group's assigned number
+      // For D20: Use the actual triangle index (each group has 1 triangle)
+      // Other dice: Use face group's assigned number
       const faceNumber = numFaces === 20 ? (triangleIndex + 1) : (faceNumberMap.get(groupIndex) ?? (groupIndex + 1));
       
       // Map to atlas cell based on face number
@@ -771,7 +764,8 @@ function applyPolyhedronUVMapping(
       if (numFaces === 10) {
         atlasCell = faceNumber; // D10 uses 0-9, maps directly
       } else if (numFaces === 20) {
-        // For d20: Use triangle index directly (faceNumber is triangleIndex + 1)
+        // For d20: Use the actual triangle index to map to atlas cell
+        // This ensures triangle N always gets texture from atlas cell N
         atlasCell = triangleIndex; // 0-indexed for atlas
       } else {
         atlasCell = faceNumber - 1; // Others use 1-indexed numbering
@@ -782,7 +776,9 @@ function applyPolyhedronUVMapping(
       const col = clampedCell % layout.cols;
       const row = Math.floor(clampedCell / layout.cols);
       const uOffset = col * cellUWidth;
-      const vOffset = row * cellVHeight;
+      // Invert V coordinate: Canvas Y increases downward, but texture V increases upward
+      // So row 0 should map to the TOP of the texture (highest V), not the bottom
+      const vOffset = (layout.rows - 1 - row) * cellVHeight;
       
       // Get the pre-calculated UVs for this face group
       const faceData = faceGroupUVs.get(groupIndex)!;
