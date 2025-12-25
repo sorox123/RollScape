@@ -55,9 +55,15 @@ export function createDiceTextureAtlas(
   // Calculate optimal font size based on cell dimensions
   // D6 typically looks good with numbers filling ~70% of face
   // D10 uses 20% for good visibility while staying centered on kite faces
+  // D8 uses 40% for good centering on triangular faces (20% smaller than default)
+  // D12 uses 47.6% (additional 15% reduction from 56%) for pentagonal faces
   let fillRatio = 0.7; // Default for most dice
   if (numFaces === 10) {
     fillRatio = 0.2;
+  } else if (numFaces === 8) {
+    fillRatio = 0.4; // Uniform size for all triangular faces
+  } else if (numFaces === 12) {
+    fillRatio = 0.476; // 35% smaller than default for pentagonal faces
   }
   
   // For d20, we need special handling to account for triangular face area
@@ -125,9 +131,34 @@ export function createDiceTextureAtlas(
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     
-    // Draw the number - positioned exactly in the center of the cell
-    const centerX = x + cellWidth / 2;
-    const centerY = y + cellHeight / 2;
+    // Calculate center position
+    let centerX = x + cellWidth / 2;
+    let centerY = y + cellHeight / 2;
+    
+    // For d12: Use pentagon centroid formula for better centering
+    // Regular pentagon centroid is at geometric center, but we adjust for visual balance
+    if (numFaces === 12) {
+      // Pentagon vertices in normalized coordinates (0 to 1) within cell
+      // Regular pentagon with flat top
+      const angle = -Math.PI / 2; // Start at top
+      const pentagonVertices: [number, number][] = [];
+      for (let v = 0; v < 5; v++) {
+        const vAngle = angle + (v * 2 * Math.PI / 5);
+        const vx = 0.5 + 0.4 * Math.cos(vAngle); // 0.4 = 80% of cell radius
+        const vy = 0.5 + 0.4 * Math.sin(vAngle);
+        pentagonVertices.push([vx, vy]);
+      }
+      
+      // Calculate centroid: average of all vertices
+      const centroidX = pentagonVertices.reduce((sum, v) => sum + v[0], 0) / 5;
+      const centroidY = pentagonVertices.reduce((sum, v) => sum + v[1], 0) / 5;
+      
+      // Apply to actual pixel coordinates
+      centerX = x + centroidX * cellWidth;
+      centerY = y + centroidY * cellHeight;
+    }
+    
+    // Draw the number at calculated center
     ctx.fillText(faceNumber, centerX, centerY);
     
     // Add underline to 6, 9, 16, and 19 to distinguish orientation
@@ -307,15 +338,32 @@ function assignDiceFaceNumbers(
     });
   } else if (numFaces === 8) {
     // D8: Octahedron - number faces 1-8
-    // Top half (1-4), bottom half (5-8), opposite faces sum to 9
+    // Opposite faces sum to 9: (1,8), (2,7), (3,6), (4,5)
+    // Sort to match physics normal order: top 4 (y>0), then bottom 4 (y<0)
     indexedFaces.sort((a, b) => {
+      // First, separate by hemisphere (top vs bottom)
       const yDiff = b.normal.y - a.normal.y;
       if (Math.abs(yDiff) > 0.1) return yDiff;
       
-      // Within same hemisphere, sort by angle
+      // Within same hemisphere, sort by rotation around Y-axis
+      // Top faces: front-right, front-left, back-left, back-right (clockwise from +X+Z)
+      // Bottom faces: back-right, back-left, front-left, front-right (opposite order)
       const angleA = Math.atan2(a.normal.z, a.normal.x);
       const angleB = Math.atan2(b.normal.z, b.normal.x);
-      return angleA - angleB;
+      
+      // For top hemisphere (y > 0): sort clockwise from +X+Z
+      // For bottom hemisphere (y < 0): sort counter-clockwise to maintain opposite pairing
+      if (a.normal.y > 0) {
+        return angleA - angleB; // Clockwise
+      } else {
+        return angleB - angleA; // Counter-clockwise
+      }
+    });
+    
+    // Log post-sort face group normals for d8 debugging
+    console.log('D8 Face Groups AFTER sorting:');
+    indexedFaces.forEach((face, idx) => {
+      console.log(`  Face ${idx + 1}: normal (${face.normal.x.toFixed(3)}, ${face.normal.y.toFixed(3)}, ${face.normal.z.toFixed(3)})`);
     });
   } else if (numFaces === 10) {
     // D10: Pentagonal trapezohedron - number 0-9
@@ -357,16 +405,27 @@ function assignDiceFaceNumbers(
       console.log(`  Kite ${face.index}: Face ${face.mappedFace}, y=${face.normal.y.toFixed(3)}, angle=${angle.toFixed(1)}°`);
     });
   } else if (numFaces === 12) {
-    // D12: Dodecahedron - 12 regular pentagonal faces, opposite faces sum to 13
-    // Structure: 1 top, 5 upper ring, 5 lower ring, 1 bottom
-    indexedFaces.sort((a, b) => {
-      const yDiff = b.normal.y - a.normal.y;
-      if (Math.abs(yDiff) > 0.3) return yDiff;
-      
-      // Within same ring, sort by angle
-      const angleA = Math.atan2(a.normal.z, a.normal.x);
-      const angleB = Math.atan2(b.normal.z, b.normal.x);
-      return angleA - angleB;
+    // D12: Dodecahedron - 12 pentagonal faces
+    // ALIGN WITH PHYSICS FACE ORDER: Map THREE.js geometry faces to match CANNON.js physics faces
+    // This eliminates the need for correction mapping - physics face[N] will show texture N+1
+    
+    // Keep original geometry face order (indexed 0-11) and map each to its corresponding display number
+    // The physics shape defines faces 0-11, we want:
+    // Physics Face 0 → Display 1, Physics Face 1 → Display 2, etc.
+    
+    // Sort faces to match the order they appear in THREE.DodecahedronGeometry
+    // THREE.DodecahedronGeometry creates faces in a specific order based on vertex connectivity
+    indexedFaces.sort((a, b) => a.index - b.index); // Keep original geometry order
+    
+    // Map each geometry face index to display number based on physics alignment
+    // We'll assign face numbers 1-12 in the order that matches physics face definitions
+    indexedFaces.forEach((face, idx) => {
+      face.mappedFace = idx + 1; // Geometry face 0→Display 1, face 1→Display 2, etc.
+    });
+    
+    console.log('D12 Texture Mapping (Geometry Face → Display Number):');
+    indexedFaces.forEach((face) => {
+      console.log(`  Geometry Face ${face.index} → Display ${face.mappedFace}`);
     });
   } else if (numFaces === 20) {
     // D20: For each face group (triangle), simply use its index + 1 as the face number
@@ -381,6 +440,8 @@ function assignDiceFaceNumbers(
     let faceNumber: number;
     if (numFaces === 20 && face.mappedFace !== undefined) {
       faceNumber = face.mappedFace; // Use triangle index + 1
+    } else if (numFaces === 12 && face.mappedFace !== undefined) {
+      faceNumber = face.mappedFace; // D12 uses direct geometry-to-display mapping
     } else if ((numFaces === 10) && face.mappedFace !== undefined) {
       faceNumber = face.mappedFace; // D10 uses custom mapping
     } else if (numFaces === 10) {
@@ -391,13 +452,20 @@ function assignDiceFaceNumbers(
     faceNumberMap.set(face.index, faceNumber);
   });
   
-  // For D10 and D20, store the face-to-number mapping globally so physics can access it
+  // For D10, D12, and D20, store the face-to-number mapping globally so physics can access it
   if (numFaces === 10) {
     (globalThis as any).__d10KiteToFaceMap = faceNumberMap;
     console.log('D10 Kite-to-Face Mapping (Kite Index → Face Number):');
     const entries = Array.from(faceNumberMap.entries()).sort((a, b) => a[0] - b[0]);
     entries.forEach(([kiteIdx, faceNum]) => {
       console.log(`  Kite ${kiteIdx} → Face ${faceNum}`);
+    });
+  } else if (numFaces === 12) {
+    (globalThis as any).__d12GeometryFaceToDisplayMap = faceNumberMap;
+    console.log('D12 Geometry-to-Display Mapping (Geometry Face → Display Number):');
+    const entries = Array.from(faceNumberMap.entries()).sort((a, b) => a[0] - b[0]);
+    entries.forEach(([geoIdx, displayNum]) => {
+      console.log(`  Geometry Face ${geoIdx} → Display ${displayNum}`);
     });
   }
   
@@ -568,6 +636,14 @@ function applyPolyhedronUVMapping(
     });
   }
   
+  // Log pre-sort face group normals for d8 debugging
+  if (numFaces === 8) {
+    console.log('D8 Face Groups BEFORE sorting:');
+    faceGroups.forEach((group, idx) => {
+      console.log(`  Group ${idx}: normal (${group.normal.x.toFixed(3)}, ${group.normal.y.toFixed(3)}, ${group.normal.z.toFixed(3)})`);
+    });
+  }
+  
   // For d20: DON'T sort - use geometry's natural triangle order to match rendering
   // Store triangle normals directly from geometry for accurate detection
   if (numFaces === 20) {
@@ -720,8 +796,17 @@ function applyPolyhedronUVMapping(
       const maxRange = Math.max(rangeU, rangeV); // Use max range to prevent stretching
       
       // Calculate center for padding
-      const centerU = (minU + maxU) / 2;
-      const centerV = (minV + maxV) / 2;
+      // For triangular faces (d4, d8, d20), use centroid instead of bounding box center
+      let centerU: number, centerV: number;
+      if (numFaces === 8 || numFaces === 20 || numFaces === 4) {
+        // Calculate centroid (average of all vertices) for triangular faces
+        centerU = projected2D.reduce((sum, p) => sum + p.x, 0) / projected2D.length;
+        centerV = projected2D.reduce((sum, p) => sum + p.y, 0) / projected2D.length;
+      } else {
+        // Use bounding box center for other shapes
+        centerU = (minU + maxU) / 2;
+        centerV = (minV + maxV) / 2;
+      }
       
       // Add padding to keep numbers away from edges
       // D10 kite faces need more padding (25%) to center numbers better on non-planar faces

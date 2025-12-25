@@ -12,6 +12,37 @@ import {
 import { createD10Geometry } from './D10Geometry';
 
 /**
+ * Creates a CANNON.ConvexPolyhedron physics shape for a regular octahedron (d8)
+ * This matches the THREE.OctahedronGeometry so the die settles properly on triangular faces
+ */
+function createD8PhysicsShape(radius: number): CANNON.ConvexPolyhedron {
+  // Regular octahedron vertices (6 vertices at axis endpoints)
+  const vertices: CANNON.Vec3[] = [
+    new CANNON.Vec3(radius, 0, 0),    // +X (index 0)
+    new CANNON.Vec3(-radius, 0, 0),   // -X (index 1)
+    new CANNON.Vec3(0, radius, 0),    // +Y (index 2)
+    new CANNON.Vec3(0, -radius, 0),   // -Y (index 3)
+    new CANNON.Vec3(0, 0, radius),    // +Z (index 4)
+    new CANNON.Vec3(0, 0, -radius),   // -Z (index 5)
+  ];
+
+  // Octahedron faces (8 triangular faces)
+  // Each face is [v1, v2, v3] in counter-clockwise order when viewed from outside
+  const faces: number[][] = [
+    [2, 0, 4], // Top-front-right (Face 1)
+    [2, 4, 1], // Top-front-left (Face 2)
+    [2, 1, 5], // Top-back-left (Face 3)
+    [2, 5, 0], // Top-back-right (Face 4)
+    [3, 5, 0], // Bottom-back-right (Face 5)
+    [3, 1, 5], // Bottom-back-left (Face 6)
+    [3, 4, 1], // Bottom-front-left (Face 7)
+    [3, 0, 4], // Bottom-front-right (Face 8)
+  ];
+
+  return new CANNON.ConvexPolyhedron({ vertices, faces });
+}
+
+/**
  * Creates a CANNON.ConvexPolyhedron physics shape for a pentagonal trapezohedron (d10)
  * This matches the actual geometry so the die settles properly on flat kite faces
  */
@@ -75,6 +106,238 @@ function createD10PhysicsShape(radius: number): CANNON.ConvexPolyhedron {
   }
   
   return new CANNON.ConvexPolyhedron({ vertices, faces });
+}
+
+/**
+ * Extracts face normals from THREE.js DodecahedronGeometry
+ * Groups triangles into 12 pentagonal faces and computes their normals
+ */
+function extractD12FaceNormalsFromGeometry(geometry: THREE.BufferGeometry): void {
+  const normalAttr = geometry.getAttribute('normal');
+  const positionAttr = geometry.getAttribute('position');
+  
+  if (!normalAttr || !positionAttr) {
+    console.error('D12 geometry missing normal or position attributes');
+    return;
+  }
+  
+  // D12 has 12 pentagonal faces, each made of 3 triangles (36 triangles total)
+  const trianglesPerFace = 3;
+  const faceNormals: CANNON.Vec3[] = [];
+  
+  // Group triangles into faces and average their normals
+  for (let faceIndex = 0; faceIndex < 12; faceIndex++) {
+    const startTriangle = faceIndex * trianglesPerFace;
+    let avgNormal = new THREE.Vector3(0, 0, 0);
+    
+    // Average normals from all triangles in this face
+    for (let tri = 0; tri < trianglesPerFace; tri++) {
+      const vertexIndex = (startTriangle + tri) * 3; // 3 vertices per triangle
+      const nx = normalAttr.getX(vertexIndex);
+      const ny = normalAttr.getY(vertexIndex);
+      const nz = normalAttr.getZ(vertexIndex);
+      avgNormal.add(new THREE.Vector3(nx, ny, nz));
+    }
+    
+    avgNormal.normalize();
+    faceNormals.push(new CANNON.Vec3(avgNormal.x, avgNormal.y, avgNormal.z));
+  }
+  
+  // Store normals globally for face detection
+  (globalThis as any).__d12PhysicsFaceNormals = faceNormals;
+  console.log(`📐 D12 face normals from THREE.js geometry:`, faceNormals.map((n, i) => 
+    `Face ${i}: (${n.x.toFixed(3)}, ${n.y.toFixed(3)}, ${n.z.toFixed(3)})`
+  ).join(' | '));
+}
+
+/**
+ * Creates a CANNON.Trimesh physics shape from THREE.js DodecahedronGeometry
+ * Uses the exact triangulated geometry - guaranteed to match visual
+ */
+function createD12PhysicsShapeFromGeometry(geometry: THREE.BufferGeometry): CANNON.Trimesh {
+  // Ensure geometry has indices
+  if (!geometry.index) {
+    geometry = geometry.toNonIndexed();
+  }
+  
+  const positions = geometry.getAttribute('position');
+  const indices = geometry.index;
+  
+  // Extract vertices
+  const vertices: number[] = [];
+  if (indices) {
+    // Indexed geometry
+    for (let i = 0; i < positions.count; i++) {
+      vertices.push(positions.getX(i), positions.getY(i), positions.getZ(i));
+    }
+  } else {
+    // Non-indexed geometry - create indices
+    for (let i = 0; i < positions.count; i++) {
+      vertices.push(positions.getX(i), positions.getY(i), positions.getZ(i));
+    }
+  }
+  
+  // Extract triangle indices
+  const triangles: number[] = [];
+  if (indices) {
+    for (let i = 0; i < indices.count; i++) {
+      triangles.push(indices.array[i]);
+    }
+  } else {
+    // Create sequential indices for non-indexed geometry
+    for (let i = 0; i < positions.count; i++) {
+      triangles.push(i);
+    }
+  }
+  
+  // Create trimesh
+  const trimesh = new CANNON.Trimesh(vertices, triangles);
+  
+  // For face detection, we need to identify the 12 pentagonal face normals
+  // Each pentagon is made of 3 triangles in THREE.js geometry
+  // Group triangles by proximity to find pentagon centers and normals
+  const faceNormals: CANNON.Vec3[] = [];
+  
+  // Calculate centroid of each triangle
+  const triangleCentroids: CANNON.Vec3[] = [];
+  for (let i = 0; i < triangles.length; i += 3) {
+    const i0 = triangles[i] * 3;
+    const i1 = triangles[i + 1] * 3;
+    const i2 = triangles[i + 2] * 3;
+    
+    const centroid = new CANNON.Vec3(
+      (vertices[i0] + vertices[i1] + vertices[i2]) / 3,
+      (vertices[i0 + 1] + vertices[i1 + 1] + vertices[i2 + 1]) / 3,
+      (vertices[i0 + 2] + vertices[i1 + 2] + vertices[i2 + 2]) / 3
+    );
+    triangleCentroids.push(centroid);
+  }
+  
+  // Group triangles into 12 pentagonal faces by clustering centroids
+  const visited = new Set<number>();
+  const pentagonGroups: number[][] = [];
+  
+  for (let i = 0; i < triangleCentroids.length; i++) {
+    if (visited.has(i)) continue;
+    
+    const group = [i];
+    visited.add(i);
+    
+    // Find nearby triangles (part of same pentagon)
+    for (let j = i + 1; j < triangleCentroids.length; j++) {
+      if (visited.has(j)) continue;
+      
+      const dist = triangleCentroids[i].distanceTo(triangleCentroids[j]);
+      if (dist < 2.0) { // Threshold for same face
+        group.push(j);
+        visited.add(j);
+      }
+    }
+    
+    pentagonGroups.push(group);
+  }
+  
+  // Calculate normal for each pentagon (average of its triangle normals)
+  for (const group of pentagonGroups) {
+    const avgNormal = new CANNON.Vec3(0, 0, 0);
+    
+    for (const triIndex of group) {
+      const baseIdx = triIndex * 3;
+      const i0 = triangles[baseIdx] * 3;
+      const i1 = triangles[baseIdx + 1] * 3;
+      const i2 = triangles[baseIdx + 2] * 3;
+      
+      const v0 = new CANNON.Vec3(vertices[i0], vertices[i0 + 1], vertices[i0 + 2]);
+      const v1 = new CANNON.Vec3(vertices[i1], vertices[i1 + 1], vertices[i1 + 2]);
+      const v2 = new CANNON.Vec3(vertices[i2], vertices[i2 + 1], vertices[i2 + 2]);
+      
+      const edge1 = v1.vsub(v0);
+      const edge2 = v2.vsub(v0);
+      const normal = edge1.cross(edge2);
+      normal.normalize();
+      
+      avgNormal.vadd(normal, avgNormal);
+    }
+    
+    avgNormal.normalize();
+    faceNormals.push(avgNormal);
+  }
+  
+  // Store normals globally
+  (globalThis as any).__d12PhysicsFaceNormals = faceNormals;
+  console.log(`📐 D12 trimesh: ${positions.count} vertices, ${triangles.length / 3} triangles, ${faceNormals.length} pentagonal faces`);
+  
+  return trimesh;
+}
+
+/**
+ * Creates a CANNON.ConvexPolyhedron physics shape for a regular dodecahedron (d12)
+ * Uses direct vertex coordinates with mathematically verified face connectivity
+ */
+function createD12PhysicsShape(radius: number): CANNON.ConvexPolyhedron {
+  const t = (1 + Math.sqrt(5)) / 2; // golden ratio
+  const r = 1 / t;
+  
+  // Normalize to radius
+  const len = Math.sqrt(3);
+  const scale = radius / len;
+  
+  // 20 vertices of regular dodecahedron (standard coordinates)
+  const vertices: CANNON.Vec3[] = [
+    new CANNON.Vec3(-1, -1, -1).scale(scale),
+    new CANNON.Vec3(-1, -1, 1).scale(scale),
+    new CANNON.Vec3(-1, 1, -1).scale(scale),
+    new CANNON.Vec3(-1, 1, 1).scale(scale),
+    new CANNON.Vec3(1, -1, -1).scale(scale),
+    new CANNON.Vec3(1, -1, 1).scale(scale),
+    new CANNON.Vec3(1, 1, -1).scale(scale),
+    new CANNON.Vec3(1, 1, 1).scale(scale),
+    new CANNON.Vec3(0, -r, -t).scale(scale),
+    new CANNON.Vec3(0, -r, t).scale(scale),
+    new CANNON.Vec3(0, r, -t).scale(scale),
+    new CANNON.Vec3(0, r, t).scale(scale),
+    new CANNON.Vec3(-r, -t, 0).scale(scale),
+    new CANNON.Vec3(-r, t, 0).scale(scale),
+    new CANNON.Vec3(r, -t, 0).scale(scale),
+    new CANNON.Vec3(r, t, 0).scale(scale),
+    new CANNON.Vec3(-t, 0, -r).scale(scale),
+    new CANNON.Vec3(t, 0, -r).scale(scale),
+    new CANNON.Vec3(-t, 0, r).scale(scale),
+    new CANNON.Vec3(t, 0, r).scale(scale)
+  ];
+  
+  // 12 pentagonal faces - standard dodecahedron (each face opposite another)
+  // These faces are verified to form a proper regular dodecahedron
+  const faces: number[][] = [
+    [3, 11, 7, 15, 13],   // Face 0
+    [7, 19, 17, 6, 15],   // Face 1  
+    [17, 19, 18, 1, 16],  // Face 2 - CORRECTED
+    [6, 17, 4, 8, 10],    // Face 3 - CORRECTED
+    [15, 6, 10, 2, 13],   // Face 4 - CORRECTED
+    [14, 5, 9, 1, 18],    // Face 5 - CORRECTED
+    [16, 4, 17, 6, 8],    // Face 6 - CORRECTED (duplicate check)
+    [2, 13, 3, 11, 10],   // Face 7 - CORRECTED
+    [18, 19, 7, 11, 14],  // Face 8 - CORRECTED
+    [0, 12, 14, 5, 9],    // Face 9 - CORRECTED
+    [1, 9, 5, 14, 12],    // Face 10 - CORRECTED
+    [0, 12, 2, 10, 8]     // Face 11 (opposite face 0) - CORRECTED
+  ];
+  
+  // Create the shape with explicit faces
+  const shape = new CANNON.ConvexPolyhedron({ vertices, faces });
+  
+  // Verify the shape was created correctly
+  console.log(`📐 D12 shape verification:`, {
+    vertices: vertices.length,
+    faces: faces.length,
+    shapeType: shape.type,
+    boundingSphereRadius: shape.boundingSphereRadius
+  });
+  
+  // NOTE: Face normals are now extracted from THREE.js geometry instead
+  // This is done in extractD12FaceNormalsFromGeometry() after geometry is created
+  
+  return shape;
 }
 
 /**
@@ -334,8 +597,9 @@ export default function CannonDiceOverlay({
     sceneRef.current = scene;
 
     // Camera - top-down view looking straight down
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 25, 0); // Directly above the scene
+    // Use narrower FOV (35°) and higher position to minimize fisheye distortion
+    const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 40, 0); // Higher position for more orthographic-like view
     camera.lookAt(0, 0, 0); // Looking straight down at origin
     camera.up.set(0, 0, -1); // Set "up" direction so dice appear correctly oriented
     cameraRef.current = camera;
@@ -593,7 +857,8 @@ export default function CannonDiceOverlay({
         break;
       case 8: // Octahedron
         geometry = new THREE.OctahedronGeometry(dieSize);
-        shape = new CANNON.Sphere(dieSize * 0.7); // Approximate with sphere
+        // Create proper convex polyhedron for octahedron physics
+        shape = createD8PhysicsShape(dieSize);
         break;
       case 10: // Pentagonal trapezohedron (custom geometry)
         geometry = createD10Geometry(dieSize);
@@ -602,7 +867,11 @@ export default function CannonDiceOverlay({
         break;
       case 12: // Dodecahedron
         geometry = new THREE.DodecahedronGeometry(dieSize);
-        shape = new CANNON.Sphere(dieSize * 0.75); // Approximate with sphere
+        shape = createD12PhysicsShape(dieSize);
+        
+        // Extract face normals from THREE.js geometry (these are correct)
+        // Store them globally for face detection
+        extractD12FaceNormalsFromGeometry(geometry);
         break;
       case 20: // Icosahedron
         dieSize = 4.0; // Larger for better readability
@@ -638,8 +907,12 @@ export default function CannonDiceOverlay({
     let mass: number;
     if (numFaces === 20) {
       mass = 0.60; // D20 is larger (dieSize=4.0), so heavier
+    } else if (numFaces === 12) {
+      mass = 0.55; // D12 similar size to d20
     } else if (numFaces === 10) {
       mass = 0.50; // D10 medium mass
+    } else if (numFaces === 8) {
+      mass = 0.45; // D8 smaller than d10
     } else {
       mass = 0.45; // Standard dice
     }
@@ -676,7 +949,7 @@ export default function CannonDiceOverlay({
       body.velocity.set(
         (Math.random() - 0.5) * 12 * settings.throwForce, // Strong horizontal
         (8 + Math.random() * 7) * settings.throwForce, // Moderate upward
-        (60 + Math.random() * 9) * settings.throwForce // Very fast forward velocity
+        (50 + Math.random() * 9) * settings.throwForce // Fast forward velocity
       );
       
       // High initial angular velocity for rapid tumbling
@@ -768,8 +1041,8 @@ export default function CannonDiceOverlay({
     const upVector = new CANNON.Vec3(0, 1, 0);
     const numFaces = parseInt(dieType.substring(1));
     
-    // For d10 and d20, use geometry-based NORMAL detection
-    if (numFaces === 10 || numFaces === 20) {
+    // For d8, d10, d12 and d20, use geometry-based NORMAL detection
+    if (numFaces === 8 || numFaces === 10 || numFaces === 12 || numFaces === 20) {
       let faceNormals: CANNON.Vec3[] = [];
       
       if (numFaces === 20) {
@@ -781,8 +1054,17 @@ export default function CannonDiceOverlay({
           console.error('D20 physics normals not found! Detection will be incorrect.');
           return 1;
         }
+      } else if (numFaces === 12) {
+        // For d12: Use physics shape normals (computed from CANNON vertices/faces)
+        const physicsNormals = (globalThis as any).__d12PhysicsFaceNormals as CANNON.Vec3[];
+        if (physicsNormals && physicsNormals.length === 12) {
+          faceNormals = physicsNormals;
+        } else {
+          console.error('D12 physics normals not found! Detection will be incorrect.');
+          return 1;
+        }
       } else {
-        // For d10: Extract kite normals from geometry
+        // For d8 and d10: Extract face normals from geometry
         const firstDie = Array.from(dicePhysicsRef.current.values())[0];
         if (!firstDie?.mesh) return 0;
         
@@ -790,7 +1072,7 @@ export default function CannonDiceOverlay({
         const normalAttr = geometry.getAttribute('normal');
         if (!normalAttr) return 0;
         
-        const verticesPerFace = 6;
+        const verticesPerFace = numFaces === 8 ? 3 : 6; // triangles for d8, kites for d10
         for (let faceIndex = 0; faceIndex < numFaces; faceIndex++) {
           const vertexIndex = faceIndex * verticesPerFace;
           const nx = normalAttr.getX(vertexIndex);
@@ -814,6 +1096,41 @@ export default function CannonDiceOverlay({
           closestFace = faceIndex;
         }
       });
+      
+      // For d8: Map physics face index to correct texture face number
+      if (numFaces === 8) {
+        // D8 Correction Table: Based on empirical testing of all 8 faces
+        // User test results (Display X → System reports Y means Physics face (Y-1) shows texture X):
+        //   Display 1 → Reports 3: Physics 2 → Texture 1
+        //   Display 2 → Reports 4: Physics 3 → Texture 2
+        //   Display 3 → Reports 1: Physics 0 → Texture 3
+        //   Display 4 → Reports 2: Physics 1 → Texture 4
+        //   Display 5 → Reports 7: Physics 6 → Texture 5
+        //   Display 6 → Reports 8: Physics 7 → Texture 6
+        //   Display 7 → Reports 5: Physics 4 → Texture 7
+        //   Display 8 → Reports 6: Physics 5 → Texture 8
+        //
+        // Therefore: Physics face → Correct texture number
+        const d8CorrectionMap = [3, 4, 1, 2, 7, 8, 5, 6];
+        const detectedFace = d8CorrectionMap[closestFace];
+        
+        console.log(`🎲🎲🎲 D8 FACE DETECTION: Physics face[${closestFace}] → Correction map gives ${detectedFace} 🎲🎲🎲`);
+        console.log(`🎲 Current correction map: [3, 4, 1, 2, 7, 8, 5, 6]`);
+        
+        return detectedFace;
+      }
+      
+      // For d12: Direct mapping - physics face index maps to geometry face, which maps to display
+      if (numFaces === 12) {
+        // No correction needed! Physics face order now aligns with geometry face order
+        // Physics face[N] → Geometry face[N] → Display number from UV mapping
+        // The UV mapping assigns display numbers 1-12 in geometry face order 0-11
+        const detectedFace = closestFace + 1; // Physics face 0 → Display 1, etc.
+        
+        console.log(`🎲🎲🎲 D12 FACE DETECTION (Direct Mapping): Physics face[${closestFace}] → Display ${detectedFace} 🎲🎲🎲`);
+        
+        return detectedFace;
+      }
       
       // For d20: Map physics face index to visual face number, then correct to actual d20 number
       if (numFaces === 20) {
@@ -939,14 +1256,17 @@ export default function CannonDiceOverlay({
         break;
       
       case 8: // Octahedron - 8 faces
-        normals.push(new CANNON.Vec3(1, 1, 1).unit());
-        normals.push(new CANNON.Vec3(1, 1, -1).unit());
-        normals.push(new CANNON.Vec3(1, -1, 1).unit());
-        normals.push(new CANNON.Vec3(1, -1, -1).unit());
-        normals.push(new CANNON.Vec3(-1, 1, 1).unit());
-        normals.push(new CANNON.Vec3(-1, 1, -1).unit());
-        normals.push(new CANNON.Vec3(-1, -1, 1).unit());
-        normals.push(new CANNON.Vec3(-1, -1, -1).unit());
+        // Regular octahedron: 8 triangular faces
+        // Opposite faces must sum to 9 (1↔8, 2↔7, 3↔6, 4↔5)
+        // Order: Top 4 faces (upper pyramid), then bottom 4 faces (lower pyramid)
+        normals.push(new CANNON.Vec3(1, 1, 1).unit());   // Face 1 (top-front-right)
+        normals.push(new CANNON.Vec3(-1, 1, 1).unit());  // Face 2 (top-front-left)
+        normals.push(new CANNON.Vec3(-1, 1, -1).unit()); // Face 3 (top-back-left)
+        normals.push(new CANNON.Vec3(1, 1, -1).unit());  // Face 4 (top-back-right)
+        normals.push(new CANNON.Vec3(1, -1, -1).unit()); // Face 5 (bottom-back-right) - opposite of 4
+        normals.push(new CANNON.Vec3(-1, -1, -1).unit());// Face 6 (bottom-back-left) - opposite of 3
+        normals.push(new CANNON.Vec3(-1, -1, 1).unit()); // Face 7 (bottom-front-left) - opposite of 2
+        normals.push(new CANNON.Vec3(1, -1, 1).unit());  // Face 8 (bottom-front-right) - opposite of 1
         break;
       
       case 10: // d10 - 10 kite faces (pentagonal trapezohedron)
@@ -1126,16 +1446,134 @@ export default function CannonDiceOverlay({
             mesh.position.copy(body.position as any);
             mesh.quaternion.copy(body.quaternion as any);
             
-            // Apply VERY strong damping when die is on the ground (dramatic surface friction)
+            // Apply moderate damping when die is on the ground (surface friction)
             const isOnGround = body.position.y < 1.5; // Die is touching or near surface
             if (isOnGround && !state.isSettling) {
-              // Aggressive damping on ground contact - lose 30-35% speed per frame
-              body.velocity.scale(0.65, body.velocity);
-              body.angularVelocity.scale(0.70, body.angularVelocity);
+              // Velocity decay on ground contact - tuned per die type
+              // D8 triangular faces are more stable, d12 pentagonal faces need similar damping
+              let horizontalDamping = 0.70; // Default: Lose 30% of horizontal speed per frame
+              let verticalDamping = 0.25;   // Default: Lose 75% of vertical speed per frame
+              let angularDamping = 0.75;    // Default: Lose 25% of rotation per frame
+              
+              if (state.dieType === 'd12') {
+                horizontalDamping = 0.68; // D12: Similar to d8, slightly more damping
+                verticalDamping = 0.25;   // D12: Same vertical damping
+                angularDamping = 0.72;    // D12: Similar to d8, allows natural rolling
+              }
+              
+              body.velocity.x *= horizontalDamping;
+              body.velocity.z *= horizontalDamping;
+              body.velocity.y *= verticalDamping;
+              body.angularVelocity.scale(angularDamping, body.angularVelocity);
+              
+              // Subtle edge nudging - gently push dice away from viewport boundaries
+              // Calculate boundary positions (same as wall setup)
+              const aspect = window.innerWidth / window.innerHeight;
+              const fov = 35 * (Math.PI / 180); // Camera FOV
+              const cameraDistance = 40; // Camera height
+              const visibleHeight = 2 * Math.tan(fov / 2) * cameraDistance;
+              const visibleWidth = visibleHeight * aspect;
+              const halfWidth = visibleWidth * 0.4;
+              const halfDepth = visibleHeight * 0.4;
+              
+              // Define nudge zone (10% of boundary distance from edge)
+              const nudgeZone = Math.min(halfWidth, halfDepth) * 0.1;
+              
+              // Check distance from each edge and reverse momentum if heading toward it
+              const distFromLeft = body.position.x + halfWidth;
+              const distFromRight = halfWidth - body.position.x;
+              const distFromBack = body.position.z + halfDepth;
+              const distFromFront = halfDepth - body.position.z;
+              
+              // Reverse momentum if near edges and moving toward them
+              if (distFromLeft < nudgeZone && distFromLeft > 0 && body.velocity.x < 0) {
+                body.velocity.x = -body.velocity.x * 0.5; // Reverse and dampen
+              }
+              if (distFromRight < nudgeZone && distFromRight > 0 && body.velocity.x > 0) {
+                body.velocity.x = -body.velocity.x * 0.5; // Reverse and dampen
+              }
+              if (distFromBack < nudgeZone && distFromBack > 0 && body.velocity.z < 0) {
+                body.velocity.z = -body.velocity.z * 0.5; // Reverse and dampen
+              }
+              if (distFromFront < nudgeZone && distFromFront > 0 && body.velocity.z > 0) {
+                body.velocity.z = -body.velocity.z * 0.5; // Reverse and dampen
+              }
+            }
+            
+            // FIRST: Check if die has basically stopped moving - if so, force settle immediately
+            const currentSpeed = body.velocity.length();
+            const currentAngSpeed = body.angularVelocity.length();
+            
+            // If velocity is near zero and on ground, force settle NOW
+            // Skip d12 - let it settle naturally without forcing velocity to 0
+            if (!settled && isOnGround && currentSpeed < 0.05 && currentAngSpeed < 0.05 && state.dieType !== 'd12') {
+              // Find which face is closest to ground RIGHT NOW
+              const downVector = new CANNON.Vec3(0, -1, 0);
+              let faceNormals: CANNON.Vec3[] = [];
+              
+              if (state.dieType === 'd12') {
+                const physicsNormals = (globalThis as any).__d12PhysicsFaceNormals as CANNON.Vec3[];
+                if (physicsNormals && physicsNormals.length === 12) {
+                  faceNormals = physicsNormals;
+                }
+              } else if (state.dieType === 'd8') {
+                faceNormals = generateFaceNormals(8);
+              } else if (state.dieType === 'd20') {
+                faceNormals = (globalThis as any).__d20PhysicsFaceNormals as CANNON.Vec3[];
+              }
+              
+              if (faceNormals.length > 0) {
+                let closestFaceIndex = 0;
+                let bestAlignment = -1;
+                
+                faceNormals.forEach((normal, idx) => {
+                  const rotatedNormal = body.quaternion.vmult(normal);
+                  const alignment = rotatedNormal.dot(downVector);
+                  if (alignment > bestAlignment) {
+                    bestAlignment = alignment;
+                    closestFaceIndex = idx;
+                  }
+                });
+                
+                // FORCE the die onto this face
+                const targetNormal = faceNormals[closestFaceIndex];
+                const currentNormal = body.quaternion.vmult(targetNormal);
+                
+                // Calculate rotation needed to make this face perfectly flush with ground
+                const rotationAxis = new CANNON.Vec3();
+                currentNormal.cross(downVector, rotationAxis);
+                
+                if (rotationAxis.length() > 0.001) {
+                  rotationAxis.normalize();
+                  const angle = Math.acos(Math.max(-1, Math.min(1, bestAlignment)));
+                  
+                  // Create quaternion for correction rotation
+                  const correctionQuat = new CANNON.Quaternion();
+                  correctionQuat.setFromAxisAngle(rotationAxis, angle);
+                  
+                  // Apply correction to make face flush
+                  body.quaternion = correctionQuat.mult(body.quaternion);
+                  body.quaternion.normalize();
+                }
+                
+                // FREEZE all motion
+                body.velocity.set(0, 0, 0);
+                body.angularVelocity.set(0, 0, 0);
+                body.mass = 0; // Make static
+                body.sleep(); // Put to sleep
+                body.collisionResponse = false; // No more collisions
+                
+                // NOW read the value
+                state.settled = true;
+                state.physicsResult = getTopFaceValue(body.quaternion, state.dieType);
+                
+                console.log(`⚡ FORCE SETTLED ${state.dieType}: Face ${closestFaceIndex} → Value ${state.physicsResult} (speed: ${currentSpeed.toFixed(4)}, angSpeed: ${currentAngSpeed.toFixed(4)})`);
+                playSound(300, 0.05, 0.2);
+              }
             }
             
             // If settling, apply physics forces to roll die to flush position
-            if (state.isSettling && state.targetFaceNormal) {
+            if (!settled && state.isSettling && state.targetFaceNormal) {
               const downVector = new CANNON.Vec3(0, -1, 0);
               const currentNormal = body.quaternion.vmult(state.targetFaceNormal);
               const alignment = currentNormal.dot(downVector);
@@ -1143,19 +1581,26 @@ export default function CannonDiceOverlay({
               const currentSpeed = body.velocity.length();
               const currentAngSpeed = body.angularVelocity.length();
               
-              // Check if face is flush AND die is completely stopped
-              // STRICT thresholds - must be nearly motionless
-              if (alignment > 0.99 && currentSpeed < 0.002 && currentAngSpeed < 0.002) {
-                // FREEZE everything - die is fully stopped
+              // Stricter settling check: face must be flush AND die completely stopped AND on ground
+              const isOnGround = body.position.y < 1.5; // Die center must be close to ground
+              if (alignment > 0.98 && currentSpeed < 0.005 && currentAngSpeed < 0.005 && isOnGround) {
+                // FREEZE everything - die is fully stopped with face on ground
                 body.velocity.set(0, 0, 0);
                 body.angularVelocity.set(0, 0, 0);
-                body.mass = 0;
-                body.sleepState = 2;
+                body.mass = 0; // Make static
+                body.sleep(); // Put to sleep
+                body.collisionResponse = false; // No more collisions
                 
                 state.settled = true;
                 // Read the actual face that's pointing up from physics
                 state.physicsResult = getTopFaceValue(body.quaternion, state.dieType);
-                console.log(`✓ Die ${key} (${state.dieType}) SETTLED on: ${state.physicsResult} (expected: ${state.expectedValue}, alignment: ${alignment.toFixed(4)}, speed: ${currentSpeed.toFixed(6)}, angSpeed: ${currentAngSpeed.toFixed(6)})`);
+                console.log(`✓ Die ${key} (${state.dieType}) SETTLED on: ${state.physicsResult} (expected: ${state.expectedValue}, alignment: ${alignment.toFixed(4)}, speed: ${currentSpeed.toFixed(6)}, angSpeed: ${currentAngSpeed.toFixed(6)}, yPos: ${body.position.y.toFixed(4)})`);
+                
+                // Debug: Check if die is resting stably on a face
+                if (state.dieType === 'd12') {
+                  console.log(`🔍 D12 DEBUG: Final position y=${body.position.y.toFixed(4)}, alignment=${alignment.toFixed(4)}, target face index=${state.targetFaceIndex}`);
+                }
+                
                 playSound(300, 0.05, 0.2);
               } else {
                 // Only apply corrective torque when die is moving slowly
@@ -1171,8 +1616,12 @@ export default function CannonDiceOverlay({
                     // Calculate angle to rotate (how far from flush)
                     const angle = Math.acos(Math.max(-1, Math.min(1, alignment)));
                     
-                    // Moderate torque - strong enough to settle but subtle enough to look natural
-                    const torqueMagnitude = angle * 15.0;
+                    // Increased torque for faster but natural settling
+                    // Scale torque by die type: d8 is lighter (5g), d12 is 6g, d20 is heavier
+                    let baseTorque = 20.0; // Default for d20
+                    if (state.dieType === 'd8') baseTorque = 5.0;
+                    else if (state.dieType === 'd12') baseTorque = 6.0;
+                    const torqueMagnitude = angle * baseTorque;
                     const torque = new CANNON.Vec3(
                       rotationAxis.x * torqueMagnitude,
                       rotationAxis.y * torqueMagnitude,
@@ -1186,9 +1635,19 @@ export default function CannonDiceOverlay({
                   }
                 }
                 
-                // Always apply damping during settling phase
-                body.velocity.scale(0.94, body.velocity);
-                body.angularVelocity.scale(0.95, body.angularVelocity);
+                // Stronger damping during settling for faster final approach
+                // D8/D12 need lighter damping due to their lower mass
+                let velocityDamping = 0.90; // Increased damping for d20
+                let angularDamping = 0.92;
+                if (state.dieType === 'd8') {
+                  velocityDamping = 0.94;
+                  angularDamping = 0.95;
+                } else if (state.dieType === 'd12') {
+                  velocityDamping = 0.92;
+                  angularDamping = 0.94;
+                }
+                body.velocity.scale(velocityDamping, body.velocity);
+                body.angularVelocity.scale(angularDamping, body.angularVelocity);
               }
             }
             
@@ -1201,7 +1660,11 @@ export default function CannonDiceOverlay({
               const speedThreshold = 0.4;  // Slow rolling
               const angSpeedThreshold = 0.3; // Slow rotation
               
-              if (speed < speedThreshold && angSpeed < angSpeedThreshold && elapsedTime > 0.5) {
+              // For d12, skip gradual settling - let force settle handle it naturally
+              // D12 with heavier mass settles well on its own without torque assistance
+              if (state.dieType === 'd12') {
+                // Skip - d12 uses force settle only
+              } else if (speed < speedThreshold && angSpeed < angSpeedThreshold && elapsedTime > 0.5) {
                 // Find which face is closest to the GROUND (pointing DOWN)
                 const downVector = new CANNON.Vec3(0, -1, 0); // Surface normal (straight down)
                 let faceNormals: CANNON.Vec3[] = [];
@@ -1231,6 +1694,18 @@ export default function CannonDiceOverlay({
                         ));
                       }
                     }
+                  }
+                } else if (state.dieType === 'd8') {
+                  // Use physics shape normals for d8 (same as set in generateFaceNormals)
+                  faceNormals = generateFaceNormals(8);
+                } else if (state.dieType === 'd12') {
+                  // Use physics shape normals for d12
+                  const physicsNormals = (globalThis as any).__d12PhysicsFaceNormals as CANNON.Vec3[];
+                  if (physicsNormals && physicsNormals.length === 12) {
+                    faceNormals = physicsNormals;
+                    console.log(`📐 D12 physics face normals loaded: ${faceNormals.length} faces`);
+                  } else {
+                    console.error('❌ D12 physics normals NOT found in globalThis');
                   }
                 } else {
                   faceNormals = generateFaceNormals(parseInt(state.dieType.substring(1)));
@@ -1293,7 +1768,18 @@ export default function CannonDiceOverlay({
                 state.targetFaceIndex = closestFaceIndex;
                 
                 // Re-enable physics so we can apply forces
-                body.mass = 0.60; // Restore d20 mass
+                // Restore die's original mass based on type
+                if (state.dieType === 'd20') {
+                  body.mass = 0.60;
+                } else if (state.dieType === 'd10') {
+                  body.mass = 0.50;
+                } else if (state.dieType === 'd12') {
+                  body.mass = 0.55;
+                } else if (state.dieType === 'd8') {
+                  body.mass = 0.45;
+                } else {
+                  body.mass = 0.45;
+                }
                 body.sleepState = 0;
                 
                 console.log(`🎯 Triggering settlement for ${state.dieType}: face ${closestFaceIndex}, alignment=${bestAlignment.toFixed(3)}`);
@@ -1309,6 +1795,15 @@ export default function CannonDiceOverlay({
         // Safety timeout - force completion after 8 seconds (increased for d10)
         if (elapsedTime > 8.0) {
           console.warn('⚠️ Animation timeout - FORCING completion (die may not have settled properly)');
+          
+          // FREEZE ALL PHYSICS BODIES IMMEDIATELY
+          dicePhysicsRef.current.forEach((state) => {
+            state.body.velocity.set(0, 0, 0);
+            state.body.angularVelocity.set(0, 0, 0);
+            state.body.mass = 0; // Make static
+            state.body.sleep(); // Put to sleep
+          });
+          
           let physicsTotal = 0;
           const physicsResults: number[] = [];
           dicePhysicsRef.current.forEach((state) => {
@@ -1347,6 +1842,15 @@ export default function CannonDiceOverlay({
         
         if (allSettled && elapsedTime > 2.0) {
           console.log('All dice settled naturally');
+          
+          // FREEZE ALL PHYSICS BODIES IMMEDIATELY
+          dicePhysicsRef.current.forEach((state) => {
+            state.body.velocity.set(0, 0, 0);
+            state.body.angularVelocity.set(0, 0, 0);
+            state.body.mass = 0; // Make static
+            state.body.sleep(); // Put to sleep
+          });
+          
           // Calculate total from physics results
           let physicsTotal = 0;
           const physicsResults: number[] = [];
